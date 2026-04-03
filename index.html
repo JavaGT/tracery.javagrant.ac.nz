@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Tracery Studio</title>
+	<link rel="stylesheet" href="css/layout.css" />
+</head>
+
+<body>
+	<div id="app">
+		<section class="toolbar" aria-label="Controls">
+			<div class="toolbarTitle">Tracery Studio</div>
+			<button id="applyCustomGrammar" type="button">Apply + Re-roll</button>
+			<button id="saveWork" type="button">Save Work</button>
+			<button id="saveToUrl" type="button">Save to URL</button>
+			<button id="formatJson" type="button">Format JSON</button>
+			<button id="formatCss" type="button">Format CSS</button>
+			<button id="exportJson" type="button">Export JSON</button>
+			<button id="loadJsonButton" type="button">Load JSON File</button>
+			<button id="toggleEditorSize" type="button">Large Editor</button>
+			<button id="toggleVerticalSplit" type="button">Editor VSplit: 50/50</button>
+			<label class="toolbarToggle" for="autoRerollOnType">
+				<input id="autoRerollOnType" type="checkbox" />
+				<span>Auto-reroll on valid JSON</span>
+			</label>
+			<button id="openConfig" type="button">Config</button>
+			<input id="jsonFileInput" type="file" accept="application/json,.json" hidden />
+		</section>
+
+		<section class="workspace" id="workspace">
+			<section class="editorPane" id="editorDropZone">
+				<div class="editorStack">
+					<div class="traceryEditorBlock">
+						<div id="jsonDebug" class="jsonDebug" role="status" aria-live="polite"></div>
+						<div class="editorSurface">
+							<div id="lineNumbers" class="lineNumbers" aria-hidden="true"></div>
+							<div class="editorInputWrap">
+								<div id="customGrammarInput" class="jsonEditor" role="textbox" aria-multiline="true"
+									aria-label="Custom grammar JSON" contenteditable="true" spellcheck="false"></div>
+							</div>
+						</div>
+					</div>
+					<div class="cssEditorBlock">
+						<div id="cssDebug" class="jsonDebug cssDebug" role="status" aria-live="polite"></div>
+						<div class="cssEditorSurface">
+							<div id="cssLineNumbers" class="lineNumbers" aria-hidden="true"></div>
+							<div class="editorInputWrap">
+								<div id="outputCssInput" class="cssEditorInput" role="textbox" aria-multiline="true"
+									aria-label="Output CSS" contenteditable="true" spellcheck="false"></div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			<section class="previewPane">
+				<div id="output" class="panel" data-placeholder="This is where your work will appear."></div>
+			</section>
+		</section>
+	</div>
+
+	<div id="configModal" class="modal isHidden" role="dialog" aria-modal="true" aria-labelledby="configTitle">
+		<div class="modalCard">
+			<h2 id="configTitle">Configuration</h2>
+			<label class="modalRow">
+				<span>Theme</span>
+				<select id="themePreference">
+					<option value="system">System</option>
+					<option value="light">Light</option>
+					<option value="dark">Dark</option>
+				</select>
+			</label>
+			<label class="modalRow">
+				<input id="openLinksInNewTab" type="checkbox" checked />
+				<span>Open rendered links in a new tab</span>
+			</label>
+			<div class="modalActions">
+				<button id="closeConfig" type="button">Close</button>
+			</div>
+		</div>
+	</div>
+
+	<script type="module" src="js/app.js"></script>
+</body>
+
+</html>

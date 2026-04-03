@@ -1,0 +1,14 @@
+{
+  "name": "tracery",
+  "version": "1.0.0",
+  "description": "Tracery modern ES module source",
+  "type": "module",
+  "scripts": {
+    "start": "python3 -m http.server 8000",
+    "dev": "python3 -m http.server 8000"
+  },
+  "exports": {
+    ".": "./js/tracery/main.js",
+    "./core": "./js/tracery/traceryCore.js"
+  }
+}
