@@ -1,6 +1,15 @@
 import tracery from "./tracery/main.js";
+import { decodeStateTextFromUrlParam, encodeStateTextForUrl } from "./services/stateCodec.js";
+import { sanitizeHtml, enforceLinkBehavior } from "./services/outputSanitizer.js";
+import {
+    loadStateFromStorage as loadStateFromStorageRepo,
+    saveStateToStorage as saveStateToStorageRepo,
+    loadFileLibrary as loadFileLibraryEntries,
+    saveFileLibrary as saveFileLibraryEntries
+} from "./services/storageRepository.js";
 
 const STORAGE_KEY = "traceryFocusedStateV2";
+const FILE_LIBRARY_KEY = "traceryFileLibraryV1";
 const SHARE_STATE_PARAM = "state";
 const DEFAULT_CONFIG = {
     openLinksInNewTab: true,
@@ -23,19 +32,6 @@ const VERTICAL_SPLIT_PRESETS = [
     { label: "60/40", bodyClass: "vsplit-t60-c40" },
     { label: "100/0", bodyClass: "vsplit-t100-c0" }
 ];
-const SAFE_HTML_TAGS = new Set([
-    "p", "br", "strong", "em", "b", "i", "u", "s", "span", "div",
-    "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "blockquote",
-    "code", "pre", "a", "img", "figure", "figcaption", "hr", "table",
-    "thead", "tbody", "tr", "th", "td"
-]);
-const SAFE_STYLE_PROPS = new Set([
-    "color", "background-color", "font-weight", "font-style", "text-decoration",
-    "text-align", "font-size", "line-height", "margin", "margin-top", "margin-right",
-    "margin-bottom", "margin-left", "padding", "padding-top", "padding-right",
-    "padding-bottom", "padding-left", "display", "width", "max-width", "height",
-    "border", "border-radius", "list-style-type"
-]);
 
 const defaultCustomGrammar = {
     "name": ["Arjun", "Yuuma", "Darcy", "Mia", "Chiaki", "Izzi", "Azra", "Lina"],
@@ -98,105 +94,6 @@ function escapeHtml(value) {
         .replace(/'/g, "&#39;");
 }
 
-function bytesToBase64(bytes) {
-    let binary = "";
-    const chunkSize = 0x8000;
-    for (let index = 0; index < bytes.length; index += chunkSize) {
-        const chunk = bytes.subarray(index, Math.min(index + chunkSize, bytes.length));
-        binary += String.fromCharCode.apply(null, chunk);
-    }
-    return btoa(binary);
-}
-
-function base64ToBytes(base64) {
-    const binary = atob(base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let index = 0; index < binary.length; index += 1) {
-        bytes[index] = binary.charCodeAt(index);
-    }
-    return bytes;
-}
-
-function bytesToBase64Url(bytes) {
-    return bytesToBase64(bytes)
-        .replace(/\+/g, "-")
-        .replace(/\//g, "_")
-        .replace(/=+$/g, "");
-}
-
-function base64UrlToBytes(base64Url) {
-    let base64 = String(base64Url || "")
-        .replace(/-/g, "+")
-        .replace(/_/g, "/");
-    while (base64.length % 4 !== 0) {
-        base64 += "=";
-    }
-    return base64ToBytes(base64);
-}
-
-async function compressTextToBase64Url(text) {
-    if (typeof CompressionStream !== "function") {
-        throw new Error("This browser does not support compressed share URLs.");
-    }
-
-    const input = new Blob([String(text || "")], { type: "text/plain" });
-    const stream = input.stream().pipeThrough(new CompressionStream("gzip"));
-    const buffer = await new Response(stream).arrayBuffer();
-    return bytesToBase64Url(new Uint8Array(buffer));
-}
-
-async function decompressTextFromBase64Url(encodedText) {
-    if (typeof DecompressionStream !== "function") {
-        throw new Error("This browser does not support compressed share URLs.");
-    }
-
-    const input = new Blob([base64UrlToBytes(encodedText)], { type: "application/octet-stream" });
-    const stream = input.stream().pipeThrough(new DecompressionStream("gzip"));
-    return await new Response(stream).text();
-}
-
-function decodePlainTextFromBase64(base64Text) {
-    const bytes = base64ToBytes(base64Text);
-    return new TextDecoder().decode(bytes);
-}
-
-function decodePlainTextFromBase64Url(encodedText) {
-    const bytes = base64UrlToBytes(encodedText);
-    return new TextDecoder().decode(bytes);
-}
-
-async function decodeStateTextFromUrlParam(encodedState) {
-    const candidates = [String(encodedState || "")];
-    if (String(encodedState || "").includes(" ")) {
-        candidates.push(String(encodedState || "").replace(/ /g, "+"));
-    }
-
-    let lastError = null;
-    for (let index = 0; index < candidates.length; index += 1) {
-        const candidate = candidates[index];
-
-        try {
-            return await decompressTextFromBase64Url(candidate);
-        } catch (error) {
-            lastError = error;
-        }
-
-        try {
-            return decodePlainTextFromBase64Url(candidate);
-        } catch (error) {
-            lastError = error;
-        }
-
-        try {
-            return decodePlainTextFromBase64(candidate);
-        } catch (error) {
-            lastError = error;
-        }
-    }
-
-    throw lastError || new Error("Unable to decode URL state.");
-}
-
 function getSavedState() {
     const grammarText = getEditorText();
     const outputCssText = getOutputCssText();
@@ -205,6 +102,27 @@ function getSavedState() {
         outputCssText: outputCssText,
         config: appConfig
     };
+}
+
+function loadFileLibrary() {
+    try {
+        return loadFileLibraryEntries(localStorage, FILE_LIBRARY_KEY);
+    } catch (error) {
+        return [];
+    }
+}
+
+function saveFileLibrary(entries) {
+    saveFileLibraryEntries(localStorage, FILE_LIBRARY_KEY, entries);
+}
+
+function formatSavedAt(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return "Unknown time";
+    }
+
+    return date.toLocaleString();
 }
 
 function normalizeLoadedState(parsed) {
@@ -352,14 +270,12 @@ async function loadStateFromUrl() {
 
 function loadStateFromStorage() {
     try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) {
+        const normalized = loadStateFromStorageRepo(localStorage, STORAGE_KEY, normalizeLoadedState);
+        if (!normalized) {
             logStartup("No local storage state found.");
             return null;
         }
 
-        const parsed = JSON.parse(raw);
-        const normalized = normalizeLoadedState(parsed);
         logStartup("Loaded state from local storage.", {
             grammarChars: (normalized.grammarText || "").length,
             hasCss: Boolean((normalized.outputCssText || "").trim())
@@ -408,7 +324,7 @@ async function loadInitialState() {
             + "Click OK to load the URL state.\n"
             + "Click Cancel to keep your local storage state.\n\n"
             + "If you load the URL state, your local storage work may be overwritten when you save. "
-            + "To keep it, make a backup first by clicking Export JSON (Save to JSON)."
+            + "To keep it, make a backup first by clicking Export JSON."
         );
 
         logStartup("User resolved URL vs local storage prompt.", {
@@ -434,7 +350,7 @@ async function loadInitialState() {
 
 async function saveStateToUrl() {
     const stateJson = JSON.stringify(getSavedState());
-    const compressedState = await compressTextToBase64Url(stateJson);
+    const compressedState = await encodeStateTextForUrl(stateJson);
     const url = new URL(window.location.href);
     url.searchParams.set(SHARE_STATE_PARAM, compressedState);
     window.history.replaceState(null, "", url.toString());
@@ -1775,15 +1691,11 @@ function focusJsonError(location) {
 function saveState() {
     const grammarText = getEditorText();
     const outputCssText = getOutputCssText();
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    saveStateToStorageRepo(localStorage, STORAGE_KEY, {
         grammarText: getGrammarWithEmbeddedCssText(grammarText, outputCssText),
         outputCssText: outputCssText,
         config: appConfig
-    }));
-}
-
-function loadState() {
-    return loadStateFromStorage() || getDefaultState();
+    });
 }
 
 function tryAutoReroll() {
@@ -1805,162 +1717,6 @@ function applyThemePreference(preference) {
         document.documentElement.setAttribute("data-theme", preference);
     } else {
         document.documentElement.removeAttribute("data-theme");
-    }
-}
-
-function sanitizeStyle(styleValue) {
-    const declarations = String(styleValue || "").split(";");
-    const safe = [];
-
-    for (let i = 0; i < declarations.length; i++) {
-        const declaration = declarations[i].trim();
-        if (!declaration) {
-            continue;
-        }
-
-        const colon = declaration.indexOf(":");
-        if (colon <= 0) {
-            continue;
-        }
-
-        const prop = declaration.slice(0, colon).trim().toLowerCase();
-        const value = declaration.slice(colon + 1).trim();
-        if (!SAFE_STYLE_PROPS.has(prop)) {
-            continue;
-        }
-
-        const lowerValue = value.toLowerCase();
-        if (lowerValue.includes("javascript:") || lowerValue.includes("expression(") || lowerValue.includes("url(javascript:")) {
-            continue;
-        }
-
-        safe.push(prop + ": " + value);
-    }
-
-    return safe.join("; ");
-}
-
-function isSafeUrl(urlValue, allowDataImage) {
-    const value = String(urlValue || "").trim().toLowerCase();
-    if (!value) {
-        return false;
-    }
-    if (value.startsWith("http://") || value.startsWith("https://") || value.startsWith("/") || value.startsWith("./") || value.startsWith("../") || value.startsWith("#")) {
-        return true;
-    }
-    if (allowDataImage && value.startsWith("data:image/")) {
-        return true;
-    }
-    if (value.startsWith("mailto:")) {
-        return true;
-    }
-    return false;
-}
-
-function sanitizeHtml(input) {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString("<div id=\"root\">" + input + "</div>", "text/html");
-    const root = doc.getElementById("root");
-
-    function cleanse(node) {
-        if (node.nodeType === Node.TEXT_NODE) {
-            return;
-        }
-
-        if (node.nodeType !== Node.ELEMENT_NODE) {
-            node.remove();
-            return;
-        }
-
-        const tag = node.tagName.toLowerCase();
-        if (!SAFE_HTML_TAGS.has(tag)) {
-            const parent = node.parentNode;
-            if (!parent) {
-                return;
-            }
-            while (node.firstChild) {
-                parent.insertBefore(node.firstChild, node);
-            }
-            parent.removeChild(node);
-            return;
-        }
-
-        const attrs = Array.from(node.attributes);
-        for (let i = 0; i < attrs.length; i++) {
-            const name = attrs[i].name.toLowerCase();
-            const value = attrs[i].value;
-
-            if (name.startsWith("on")) {
-                node.removeAttribute(attrs[i].name);
-                continue;
-            }
-
-            if (name === "style") {
-                const cleanStyle = sanitizeStyle(value);
-                if (cleanStyle) {
-                    node.setAttribute("style", cleanStyle);
-                } else {
-                    node.removeAttribute("style");
-                }
-                continue;
-            }
-
-            if (tag === "a" && name === "href") {
-                if (!isSafeUrl(value, false)) {
-                    node.removeAttribute(attrs[i].name);
-                }
-                continue;
-            }
-
-            if (tag === "img" && name === "src") {
-                if (!isSafeUrl(value, true)) {
-                    node.removeAttribute(attrs[i].name);
-                }
-                continue;
-            }
-
-            const commonAllowed = ["class", "id", "title", "aria-label", "aria-hidden", "role"];
-            const imageAllowed = ["alt", "width", "height", "loading", "decoding"];
-            const linkAllowed = ["target", "rel"];
-
-            if (commonAllowed.includes(name)) {
-                continue;
-            }
-            if (tag === "img" && imageAllowed.includes(name)) {
-                continue;
-            }
-            if (tag === "a" && linkAllowed.includes(name)) {
-                continue;
-            }
-
-            node.removeAttribute(attrs[i].name);
-        }
-
-        const children = Array.from(node.childNodes);
-        for (let i = 0; i < children.length; i++) {
-            cleanse(children[i]);
-        }
-    }
-
-    const rootChildren = Array.from(root.childNodes);
-    for (let i = 0; i < rootChildren.length; i++) {
-        cleanse(rootChildren[i]);
-    }
-
-    return root.innerHTML;
-}
-
-function enforceLinkBehavior(container) {
-    const links = container.querySelectorAll("a[href]");
-    for (let i = 0; i < links.length; i++) {
-        const link = links[i];
-        if (appConfig.openLinksInNewTab) {
-            link.setAttribute("target", "_blank");
-            link.setAttribute("rel", "noopener noreferrer");
-        } else {
-            link.removeAttribute("target");
-            link.removeAttribute("rel");
-        }
     }
 }
 
@@ -2028,7 +1784,7 @@ function renderOne() {
         + "</div>";
 
     outputHost.setAttribute("data-rendered", "1");
-    enforceLinkBehavior(outputRoot);
+    enforceLinkBehavior(outputRoot, appConfig.openLinksInNewTab);
 }
 
 function applyGrammar() {
@@ -2102,7 +1858,12 @@ function applyLayoutPresetState() {
 
     const toggleButton = byId("toggleEditorSize");
     if (toggleButton) {
-        toggleButton.textContent = "Layout: " + preset.label;
+        const label = toggleButton.querySelector("span");
+        if (label) {
+            label.textContent = "Layout: " + preset.label;
+        } else {
+            toggleButton.textContent = "Layout: " + preset.label;
+        }
     }
 }
 
@@ -2117,7 +1878,12 @@ function applyVerticalSplitPresetState() {
 
     const button = byId("toggleVerticalSplit");
     if (button) {
-        button.textContent = "Editor VSplit: " + preset.label;
+        const label = button.querySelector("span");
+        if (label) {
+            label.textContent = "VSplit: " + preset.label;
+        } else {
+            button.textContent = "VSplit: " + preset.label;
+        }
     }
 }
 
@@ -2127,30 +1893,157 @@ document.addEventListener("DOMContentLoaded", function () {
         const outputCssInput = getOutputCssElement();
         const dropZone = byId("editorDropZone");
         const fileInput = byId("jsonFileInput");
+        const openFileManager = byId("openFileManager");
+        const fileManagerModal = byId("fileManagerModal");
+        const closeFileManager = byId("closeFileManager");
+        const refreshFileLibrary = byId("refreshFileLibrary");
+        const saveFileEntry = byId("saveFileEntry");
+        const fileManagerName = byId("fileManagerName");
+        const fileManagerStatus = byId("fileManagerStatus");
+        const fileLibraryList = byId("fileLibraryList");
         const openLinksInNewTab = byId("openLinksInNewTab");
         const themePreference = byId("themePreference");
         const autoRerollOnType = byId("autoRerollOnType");
 
-        const saved = await loadInitialState();
-        appConfig = saved.config;
-        openLinksInNewTab.checked = appConfig.openLinksInNewTab;
-        themePreference.value = appConfig.themePreference;
-        autoRerollOnType.checked = appConfig.autoRerollOnType;
-        applyLayoutPresetState();
-        applyVerticalSplitPresetState();
-        applyThemePreference(appConfig.themePreference);
-
-        if (saved.grammarText) {
-            setEditorText(saved.grammarText, false);
-        } else {
-            setEditorText(JSON.stringify(defaultCustomGrammar, null, 2), false);
+        function setFileManagerStatus(message, isError) {
+            if (!fileManagerStatus) {
+                return;
+            }
+            fileManagerStatus.textContent = message;
+            fileManagerStatus.classList.toggle("error", Boolean(isError));
         }
-        setCssEditorText(saved.outputCssText || DEFAULT_OUTPUT_CSS, false);
-        resetEditorHistory("json", getEditorText());
-        resetEditorHistory("css", getOutputCssText());
-        updateLineNumbers(0);
-        updateCssLineNumbers(0);
-        updateCssValidationHint();
+
+        function applyLoadedStateToUi(loadedState, sourceLabel, options) {
+            const opts = options || {};
+            const normalized = normalizeLoadedState(loadedState || {});
+            appConfig = normalized.config;
+
+            openLinksInNewTab.checked = appConfig.openLinksInNewTab;
+            themePreference.value = appConfig.themePreference;
+            autoRerollOnType.checked = appConfig.autoRerollOnType;
+            applyLayoutPresetState();
+            applyVerticalSplitPresetState();
+            applyThemePreference(appConfig.themePreference);
+
+            if (normalized.grammarText) {
+                setEditorText(normalized.grammarText, false);
+            } else {
+                setEditorText(JSON.stringify(defaultCustomGrammar, null, 2), false);
+            }
+            setCssEditorText(normalized.outputCssText || DEFAULT_OUTPUT_CSS, false);
+            resetEditorHistory("json", getEditorText());
+            resetEditorHistory("css", getOutputCssText());
+            updateLineNumbers(0);
+            updateCssLineNumbers(0);
+            updateCssValidationHint();
+            applyGrammar();
+
+            if (opts.persist !== false) {
+                saveState();
+            }
+            if (opts.showStatus !== false) {
+                setStatus("Loaded " + sourceLabel + ".", false);
+            }
+        }
+
+        function getLibraryEntrySizeLabel(state) {
+            const chars = state && typeof state.grammarText === "string"
+                ? state.grammarText.length
+                : 0;
+            return chars + " chars";
+        }
+
+        function renderFileLibrary() {
+            if (!fileLibraryList) {
+                return;
+            }
+
+            const entries = loadFileLibrary().sort(function (a, b) {
+                return String(b.savedAt || "").localeCompare(String(a.savedAt || ""));
+            });
+
+            fileLibraryList.innerHTML = "";
+            if (!entries.length) {
+                const empty = document.createElement("p");
+                empty.className = "fileLibraryEmpty";
+                empty.textContent = "No local files yet. Enter a name and click Save File.";
+                fileLibraryList.appendChild(empty);
+                return;
+            }
+
+            for (let i = 0; i < entries.length; i += 1) {
+                const entry = entries[i];
+                const row = document.createElement("div");
+                row.className = "fileRow";
+
+                const meta = document.createElement("div");
+                meta.className = "fileMeta";
+
+                const name = document.createElement("div");
+                name.className = "fileName";
+                name.textContent = entry.name;
+
+                const info = document.createElement("div");
+                info.className = "fileInfo";
+                info.textContent = formatSavedAt(entry.savedAt) + " | " + getLibraryEntrySizeLabel(entry.state);
+
+                meta.appendChild(name);
+                meta.appendChild(info);
+
+                const actions = document.createElement("div");
+                actions.className = "fileActions";
+
+                const loadButton = document.createElement("button");
+                loadButton.type = "button";
+                loadButton.textContent = "Load";
+                loadButton.addEventListener("click", function () {
+                    const shouldLoad = window.confirm("Load '" + entry.name + "'? This will replace the current editor content.");
+                    if (!shouldLoad) {
+                        return;
+                    }
+
+                    applyLoadedStateToUi(entry.state, "local file '" + entry.name + "'");
+                    setFileManagerStatus("Loaded '" + entry.name + "'.", false);
+                });
+
+                const deleteButton = document.createElement("button");
+                deleteButton.type = "button";
+                deleteButton.textContent = "Delete";
+                deleteButton.addEventListener("click", function () {
+                    const shouldDelete = window.confirm("Delete '" + entry.name + "' from local files?");
+                    if (!shouldDelete) {
+                        return;
+                    }
+
+                    const remaining = loadFileLibrary().filter(function (item) {
+                        return item.name !== entry.name;
+                    });
+                    saveFileLibrary(remaining);
+                    renderFileLibrary();
+                    setFileManagerStatus("Deleted '" + entry.name + "'.", false);
+                });
+
+                actions.appendChild(loadButton);
+                actions.appendChild(deleteButton);
+                row.appendChild(meta);
+                row.appendChild(actions);
+                fileLibraryList.appendChild(row);
+            }
+        }
+
+        function openFileManagerModal() {
+            renderFileLibrary();
+            setFileManagerStatus("", false);
+            fileManagerModal.classList.remove("isHidden");
+            fileManagerName.focus();
+        }
+
+        function closeFileManagerModal() {
+            fileManagerModal.classList.add("isHidden");
+        }
+
+        const saved = await loadInitialState();
+        applyLoadedStateToUi(saved, "saved state", { persist: false, showStatus: false });
 
         byId("applyCustomGrammar").addEventListener("click", applyGrammar);
         byId("saveWork").addEventListener("click", function () {
@@ -2194,6 +2087,53 @@ document.addEventListener("DOMContentLoaded", function () {
         byId("exportJson").addEventListener("click", exportJsonFile);
         byId("loadJsonButton").addEventListener("click", function () {
             fileInput.click();
+        });
+        openFileManager.addEventListener("click", openFileManagerModal);
+        closeFileManager.addEventListener("click", closeFileManagerModal);
+        refreshFileLibrary.addEventListener("click", function () {
+            renderFileLibrary();
+            setFileManagerStatus("Refreshed local file list.", false);
+        });
+        saveFileEntry.addEventListener("click", function () {
+            const rawName = String(fileManagerName.value || "").trim();
+            if (!rawName) {
+                setFileManagerStatus("Enter a file name before saving.", true);
+                return;
+            }
+
+            const entries = loadFileLibrary();
+            const existingIndex = entries.findIndex(function (entry) {
+                return entry.name.toLowerCase() === rawName.toLowerCase();
+            });
+
+            if (existingIndex >= 0) {
+                const overwrite = window.confirm("A file named '" + entries[existingIndex].name + "' already exists. Overwrite it?");
+                if (!overwrite) {
+                    return;
+                }
+            }
+
+            const snapshot = {
+                name: rawName,
+                savedAt: new Date().toISOString(),
+                state: getSavedState()
+            };
+
+            if (existingIndex >= 0) {
+                entries[existingIndex] = snapshot;
+            } else {
+                entries.push(snapshot);
+            }
+
+            saveFileLibrary(entries);
+            renderFileLibrary();
+            setFileManagerStatus("Saved '" + rawName + "' to local files.", false);
+            setStatus("Saved local file '" + rawName + "'.", false);
+        });
+        fileManagerModal.addEventListener("click", function (event) {
+            if (event.target === fileManagerModal) {
+                closeFileManagerModal();
+            }
         });
         byId("toggleEditorSize").addEventListener("click", function () {
             appConfig.layoutPresetIndex = (appConfig.layoutPresetIndex + 1) % LAYOUT_PRESETS.length;
@@ -2338,6 +2278,5 @@ document.addEventListener("DOMContentLoaded", function () {
             exportJsonFile();
         });
 
-        applyGrammar();
     })();
 });

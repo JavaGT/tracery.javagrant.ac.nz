@@ -143,6 +143,14 @@ button {
 	padding: 3px 8px;
 	cursor: pointer;
 	color: var(--control-ink);
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+button i {
+	font-size: 0.9em;
+	opacity: 0.85;
 }
 
 button:hover {
@@ -241,6 +249,28 @@ input {
 	display: flex;
 	flex-direction: column;
 	overflow: hidden;
+}
+
+.editorBlockHeader {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 4px 6px;
+	border-bottom: 1px solid color-mix(in srgb, var(--line) 75%, transparent);
+	background: var(--surface-muted);
+}
+
+.editorBlockTitle {
+	font-size: 0.82rem;
+	font-weight: 700;
+	letter-spacing: 0.03em;
+	text-transform: uppercase;
+	color: var(--muted);
+}
+
+.editorBlockHeader button {
+	padding: 2px 8px;
+	font-size: 0.86rem;
 }
 
 .cssEditorBlock {
@@ -655,6 +685,68 @@ body.vsplit-t0-c100 .cssEditorBlock {
 	padding: 10px;
 	display: grid;
 	gap: 10px;
+}
+
+.fileManagerCard {
+	max-width: 620px;
+	width: min(92vw, 620px);
+}
+
+#fileManagerName {
+	width: 100%;
+	padding: 6px 8px;
+}
+
+.fileLibraryList {
+	max-height: 300px;
+	overflow: auto;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	padding: 6px;
+	background: var(--surface);
+	display: grid;
+	gap: 6px;
+}
+
+.fileLibraryEmpty {
+	margin: 0;
+	padding: 8px;
+	color: var(--muted);
+	font-size: 0.92rem;
+}
+
+.fileRow {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 8px;
+	align-items: center;
+	padding: 6px;
+	border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+	border-radius: 8px;
+	background: var(--control-bg);
+}
+
+.fileMeta {
+	min-width: 0;
+	display: grid;
+	gap: 2px;
+}
+
+.fileName {
+	font-weight: 600;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.fileInfo {
+	font-size: 0.85rem;
+	color: var(--muted);
+}
+
+.fileActions {
+	display: inline-flex;
+	gap: 6px;
 }
 
 .modalCard h2 {

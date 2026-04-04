@@ -5,6 +5,9 @@
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<title>Tracery Studio</title>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+		integrity="sha512-SnH5WK+bZxgPHs44uWix+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkR4j8oTH7h8w2f2I1jXn/tWtIaxVXMmY8mA=="
+		crossorigin="anonymous" referrerpolicy="no-referrer" />
 	<link rel="stylesheet" href="css/layout.css" />
 </head>
 
@@ -12,20 +15,18 @@
 	<div id="app">
 		<section class="toolbar" aria-label="Controls">
 			<div class="toolbarTitle">Tracery Studio</div>
-			<button id="applyCustomGrammar" type="button">Apply + Re-roll</button>
-			<button id="saveWork" type="button">Save Work</button>
-			<button id="saveToUrl" type="button">Save to URL</button>
-			<button id="formatJson" type="button">Format JSON</button>
-			<button id="formatCss" type="button">Format CSS</button>
-			<button id="exportJson" type="button">Export JSON</button>
-			<button id="loadJsonButton" type="button">Load JSON File</button>
-			<button id="toggleEditorSize" type="button">Large Editor</button>
-			<button id="toggleVerticalSplit" type="button">Editor VSplit: 50/50</button>
+			<button id="applyCustomGrammar" type="button"><i class="fa-solid fa-rotate" aria-hidden="true"></i><span>Roll</span></button>
+			<button id="saveToUrl" type="button"><i class="fa-solid fa-link" aria-hidden="true"></i><span>Share URL</span></button>
+			<button id="exportJson" type="button"><i class="fa-solid fa-file-export" aria-hidden="true"></i><span>Export JSON</span></button>
+			<button id="loadJsonButton" type="button"><i class="fa-solid fa-file-import" aria-hidden="true"></i><span>Import JSON</span></button>
+			<button id="openFileManager" type="button"><i class="fa-regular fa-folder-open" aria-hidden="true"></i><span>Files</span></button>
+			<button id="toggleEditorSize" type="button"><i class="fa-solid fa-table-columns" aria-hidden="true"></i><span>Layout: 50/50</span></button>
+			<button id="toggleVerticalSplit" type="button"><i class="fa-solid fa-grip-lines-vertical" aria-hidden="true"></i><span>VSplit: 50/50</span></button>
 			<label class="toolbarToggle" for="autoRerollOnType">
 				<input id="autoRerollOnType" type="checkbox" />
 				<span>Auto-reroll on valid JSON</span>
 			</label>
-			<button id="openConfig" type="button">Config</button>
+			<button id="openConfig" type="button"><i class="fa-solid fa-gear" aria-hidden="true"></i><span>Config</span></button>
 			<input id="jsonFileInput" type="file" accept="application/json,.json" hidden />
 		</section>
 
@@ -33,6 +34,10 @@
 			<section class="editorPane" id="editorDropZone">
 				<div class="editorStack">
 					<div class="traceryEditorBlock">
+						<div class="editorBlockHeader">
+							<div class="editorBlockTitle">Grammar JSON</div>
+							<button id="formatJson" type="button"><i class="fa-solid fa-brackets-curly" aria-hidden="true"></i><span>Format</span></button>
+						</div>
 						<div id="jsonDebug" class="jsonDebug" role="status" aria-live="polite"></div>
 						<div class="editorSurface">
 							<div id="lineNumbers" class="lineNumbers" aria-hidden="true"></div>
@@ -43,6 +48,10 @@
 						</div>
 					</div>
 					<div class="cssEditorBlock">
+						<div class="editorBlockHeader">
+							<div class="editorBlockTitle">Output CSS</div>
+							<button id="formatCss" type="button"><i class="fa-brands fa-css3-alt" aria-hidden="true"></i><span>Format</span></button>
+						</div>
 						<div id="cssDebug" class="jsonDebug cssDebug" role="status" aria-live="polite"></div>
 						<div class="cssEditorSurface">
 							<div id="cssLineNumbers" class="lineNumbers" aria-hidden="true"></div>
@@ -78,6 +87,22 @@
 			</label>
 			<div class="modalActions">
 				<button id="closeConfig" type="button">Close</button>
+			</div>
+		</div>
+	</div>
+
+	<div id="fileManagerModal" class="modal isHidden" role="dialog" aria-modal="true" aria-labelledby="fileManagerTitle">
+		<div class="modalCard fileManagerCard">
+			<h2 id="fileManagerTitle">Local Files</h2>
+			<div class="modalRow">
+				<input id="fileManagerName" type="text" placeholder="File name" aria-label="File name" />
+				<button id="saveFileEntry" type="button">Save File</button>
+			</div>
+			<div id="fileManagerStatus" class="jsonDebug" role="status" aria-live="polite"></div>
+			<div id="fileLibraryList" class="fileLibraryList" aria-label="Saved local files"></div>
+			<div class="modalActions">
+				<button id="refreshFileLibrary" type="button">Refresh</button>
+				<button id="closeFileManager" type="button">Close</button>
 			</div>
 		</div>
 	</div>
