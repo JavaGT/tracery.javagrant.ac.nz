@@ -1,15 +1,7 @@
 import tracery from "./tracery/main.js";
 import { decodeStateTextFromUrlParam, encodeStateTextForUrl } from "./services/stateCodec.js";
 import { sanitizeHtml, enforceLinkBehavior } from "./services/outputSanitizer.js";
-import {
-    loadStateFromStorage as loadStateFromStorageRepo,
-    saveStateToStorage as saveStateToStorageRepo,
-    loadFileLibrary as loadFileLibraryEntries,
-    saveFileLibrary as saveFileLibraryEntries
-} from "./services/storageRepository.js";
 
-const STORAGE_KEY = "traceryFocusedStateV2";
-const FILE_LIBRARY_KEY = "traceryFileLibraryV1";
 const SHARE_STATE_PARAM = "state";
 const DEFAULT_CONFIG = {
     openLinksInNewTab: true,
@@ -57,6 +49,7 @@ let appConfig = {
     layoutPresetIndex: DEFAULT_CONFIG.layoutPresetIndex,
     verticalSplitPresetIndex: DEFAULT_CONFIG.verticalSplitPresetIndex
 };
+let lastSharedStateSignature = null;
 const EDITOR_HISTORY_LIMIT = 200;
 const editorHistory = {
     json: { undo: [], redo: [], lastValue: null, applying: false },
@@ -104,25 +97,18 @@ function getSavedState() {
     };
 }
 
-function loadFileLibrary() {
-    try {
-        return loadFileLibraryEntries(localStorage, FILE_LIBRARY_KEY);
-    } catch (error) {
-        return [];
-    }
+function getStateSignature(state) {
+    return JSON.stringify(normalizeLoadedState(state || {}));
 }
 
-function saveFileLibrary(entries) {
-    saveFileLibraryEntries(localStorage, FILE_LIBRARY_KEY, entries);
-}
-
-function formatSavedAt(value) {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-        return "Unknown time";
+function updateShareUrlButtonState() {
+    const button = byId("saveToUrl");
+    if (!button) {
+        return;
     }
 
-    return date.toLocaleString();
+    const currentSignature = getStateSignature(getSavedState());
+    button.classList.toggle("isStaleShare", currentSignature !== lastSharedStateSignature);
 }
 
 function normalizeLoadedState(parsed) {
@@ -269,28 +255,7 @@ async function loadStateFromUrl() {
 }
 
 function loadStateFromStorage() {
-    try {
-        const normalized = loadStateFromStorageRepo(localStorage, STORAGE_KEY, normalizeLoadedState);
-        if (!normalized) {
-            logStartup("No local storage state found.");
-            return null;
-        }
-
-        logStartup("Loaded state from local storage.", {
-            grammarChars: (normalized.grammarText || "").length,
-            hasCss: Boolean((normalized.outputCssText || "").trim())
-        });
-        return normalized;
-    } catch (error) {
-        logStartup("Failed to parse local storage state.", {
-            error: error && error.message ? error.message : String(error)
-        });
-        return null;
-    }
-}
-
-function hasMeaningfulStoredWork(state) {
-    return Boolean(state && typeof state.grammarText === "string" && state.grammarText.trim());
+    return null;
 }
 
 function getDefaultState() {
@@ -310,42 +275,14 @@ function getDefaultState() {
 async function loadInitialState() {
     logStartup("Starting initial state resolution.");
     const sharedState = await loadStateFromUrl();
-    const storedState = loadStateFromStorage();
-
-    logStartup("State source availability.", {
-        hasUrlState: Boolean(sharedState),
-        hasStoredState: Boolean(storedState),
-        hasMeaningfulStoredWork: hasMeaningfulStoredWork(storedState)
-    });
-
-    if (sharedState && hasMeaningfulStoredWork(storedState)) {
-        const loadUrlState = window.confirm(
-            "This page has saved state in both the URL and local storage.\n\n"
-            + "Click OK to load the URL state.\n"
-            + "Click Cancel to keep your local storage state.\n\n"
-            + "If you load the URL state, your local storage work may be overwritten when you save. "
-            + "To keep it, make a backup first by clicking Export JSON."
-        );
-
-        logStartup("User resolved URL vs local storage prompt.", {
-            selectedSource: loadUrlState ? "url" : "storage"
-        });
-
-        return loadUrlState ? sharedState : storedState;
-    }
 
     if (sharedState) {
         logStartup("Using URL state.");
-        return sharedState;
+        return { state: sharedState, source: "url" };
     }
 
-    if (storedState) {
-        logStartup("Using local storage state.");
-        return storedState;
-    }
-
-    logStartup("No saved state found; using defaults.");
-    return getDefaultState();
+    logStartup("No URL state found; using defaults.");
+    return { state: getDefaultState(), source: "default" };
 }
 
 async function saveStateToUrl() {
@@ -354,6 +291,8 @@ async function saveStateToUrl() {
     const url = new URL(window.location.href);
     url.searchParams.set(SHARE_STATE_PARAM, compressedState);
     window.history.replaceState(null, "", url.toString());
+    lastSharedStateSignature = getStateSignature(getSavedState());
+    updateShareUrlButtonState();
 
     let copiedToClipboard = false;
     if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
@@ -894,7 +833,6 @@ function updateCssValidationHint() {
 
 function commitEditorMutation() {
     syncEditorHistory("json", getEditorText());
-    saveState();
     updateJsonValidationHint();
     if (appConfig.autoRerollOnType) {
         tryAutoReroll();
@@ -903,8 +841,9 @@ function commitEditorMutation() {
 
 function commitCssEditorMutation() {
     syncEditorHistory("css", getOutputCssText());
-    saveState();
     updateCssValidationHint();
+    scheduleAutoSaveToUrl();
+    updateShareUrlButtonState();
     updateRenderedCssOnly();
 }
 
@@ -1161,12 +1100,14 @@ function formatCssInEditor() {
     if (issue) {
         updateCssLineNumbers(issue.line);
         setCssStatus("Cannot format invalid CSS at line " + issue.line + ", col " + issue.column + ": " + issue.message, true);
+        updateShareUrlButtonState();
         return false;
     }
 
     setCssEditorText(formatCssText(sourceText), false);
     updateCssLineNumbers(0);
     setCssStatus("CSS formatted.", false);
+    updateCssValidationHint();
     return true;
 }
 
@@ -1562,53 +1503,12 @@ function parseJsonWithPosition(text) {
 
 function extractJsonErrorLocation(text, error) {
     const message = String((error && error.message) || "");
-
-    const propertyLine = Number(error && (error.lineNumber || error.line));
-    const propertyColumn = Number(error && (error.columnNumber || error.column));
-    const propertyPosition = Number(error && (error.position || error.at));
-
-    if (Number.isFinite(propertyLine) && propertyLine > 0) {
-        const line = propertyLine;
-        const column = Number.isFinite(propertyColumn) && propertyColumn > 0 ? propertyColumn : 1;
-        const offset = getLineStartOffset(text, line) + Math.max(0, column - 1);
-        return {
-            line: line,
-            column: column,
-            offset: offset,
-            character: offset + 1
-        };
-    }
-
-    if (Number.isFinite(propertyPosition) && propertyPosition >= 0) {
-        const converted = offsetToLineColumn(text, propertyPosition);
-        return {
-            line: converted.line,
-            column: converted.column,
-            offset: propertyPosition,
-            character: propertyPosition + 1
-        };
-    }
-
-    const lineColumn = /line\s+(\d+)\s*(?:,|\s+)\s*(?:col(?:umn)?\s*)?(\d+)/i.exec(message)
-        || /at\s+line\s+(\d+)\s+column\s+(\d+)/i.exec(message)
-        || /line\s*[:=]\s*(\d+)\D+column\s*[:=]\s*(\d+)/i.exec(message);
-    if (lineColumn) {
-        const line = Number(lineColumn[1]);
-        const column = Number(lineColumn[2]);
-        const offset = getLineStartOffset(text, line) + Math.max(0, column - 1);
-        return {
-            line: line,
-            column: column,
-            offset: offset,
-            character: offset + 1
-        };
-    }
-
-    const position = /position\s+(\d+)/i.exec(message)
-        || /at\s+character\s+(\d+)/i.exec(message)
-        || /char\s+(\d+)/i.exec(message);
-    if (position) {
-        const offset = Number(position[1]);
+    const maxLine = Math.max(1, text.split("\n").length);
+    const clampOffset = function (value) {
+        return Math.max(0, Math.min(value, text.length));
+    };
+    const makeFromOffset = function (rawOffset) {
+        const offset = clampOffset(Number(rawOffset) || 0);
         const converted = offsetToLineColumn(text, offset);
         return {
             line: converted.line,
@@ -1616,6 +1516,51 @@ function extractJsonErrorLocation(text, error) {
             offset: offset,
             character: offset + 1
         };
+    };
+    const makeFromLineColumn = function (rawLine, rawColumn) {
+        const line = Math.max(1, Math.min(Number(rawLine) || 1, maxLine));
+        const column = Math.max(1, Number(rawColumn) || 1);
+        const offset = clampOffset(getLineStartOffset(text, line) + (column - 1));
+        const converted = offsetToLineColumn(text, offset);
+        return {
+            line: converted.line,
+            column: converted.column,
+            offset: offset,
+            character: offset + 1
+        };
+    };
+
+    // Our custom parser sets these fields. Prefer them over browser Error.lineNumber/columnNumber.
+    const parserOffset = Number(error && (error.offset ?? error.position ?? error.at));
+    if (Number.isFinite(parserOffset) && parserOffset >= 0) {
+        return makeFromOffset(parserOffset);
+    }
+
+    const parserLine = Number(error && error.line);
+    const parserColumn = Number(error && error.column);
+    if (Number.isFinite(parserLine) && parserLine > 0) {
+        return makeFromLineColumn(parserLine, parserColumn);
+    }
+
+    const lineColumn = /line\s+(\d+)\s*(?:,|\s+)\s*(?:col(?:umn)?\s*)?(\d+)/i.exec(message)
+        || /at\s+line\s+(\d+)\s+column\s+(\d+)/i.exec(message)
+        || /line\s*[:=]\s*(\d+)\D+column\s*[:=]\s*(\d+)/i.exec(message);
+    if (lineColumn) {
+        return makeFromLineColumn(lineColumn[1], lineColumn[2]);
+    }
+
+    const position = /position\s+(\d+)/i.exec(message)
+        || /at\s+character\s+(\d+)/i.exec(message)
+        || /char\s+(\d+)/i.exec(message);
+    if (position) {
+        return makeFromOffset(position[1]);
+    }
+
+    // Final fallback: native JSON.parse in some browsers exposes lineNumber/columnNumber.
+    const nativeLine = Number(error && error.lineNumber);
+    const nativeColumn = Number(error && error.columnNumber);
+    if (Number.isFinite(nativeLine) && nativeLine > 0) {
+        return makeFromLineColumn(nativeLine, nativeColumn);
     }
 
     return null;
@@ -1626,10 +1571,12 @@ function updateJsonValidationHint() {
     try {
         parseJsonWithPosition(text);
         updateLineNumbers(0);
+        scheduleAutoSaveToUrl();
     } catch (error) {
         const location = extractJsonErrorLocation(text, error);
         updateLineNumbers(location ? location.line : 0);
     }
+    updateShareUrlButtonState();
 }
 
 function setJsonParseError(error, text, prefixMessage) {
@@ -1688,14 +1635,18 @@ function focusJsonError(location) {
     }
 }
 
-function saveState() {
-    const grammarText = getEditorText();
-    const outputCssText = getOutputCssText();
-    saveStateToStorageRepo(localStorage, STORAGE_KEY, {
-        grammarText: getGrammarWithEmbeddedCssText(grammarText, outputCssText),
-        outputCssText: outputCssText,
-        config: appConfig
-    });
+let autoSaveToUrlTimer = null;
+
+function scheduleAutoSaveToUrl() {
+    if (autoSaveToUrlTimer) {
+        window.clearTimeout(autoSaveToUrlTimer);
+    }
+
+    autoSaveToUrlTimer = window.setTimeout(function () {
+        saveStateToUrl().catch(function () {
+            // Ignore transient URL save failures during typing.
+        });
+    }, 350);
 }
 
 function tryAutoReroll() {
@@ -1752,9 +1703,11 @@ function formatJsonInEditor() {
         const parsed = parseJsonWithPosition(sourceText);
         setEditorText(JSON.stringify(parsed, null, 2), false);
         updateLineNumbers(0);
+        updateJsonValidationHint();
         return true;
     } catch (error) {
         setJsonParseError(error, sourceText, "Cannot save invalid JSON");
+        updateShareUrlButtonState();
         return false;
     }
 }
@@ -1793,7 +1746,7 @@ function applyGrammar() {
         const text = getEditorText();
         const parsed = parseGrammarText(text);
         activeGrammar = tracery.createGrammar(parsed);
-        saveState();
+        scheduleAutoSaveToUrl();
         renderOne();
         setStatus("JSON valid. Grammar applied.", false);
     } catch (error) {
@@ -1893,25 +1846,9 @@ document.addEventListener("DOMContentLoaded", function () {
         const outputCssInput = getOutputCssElement();
         const dropZone = byId("editorDropZone");
         const fileInput = byId("jsonFileInput");
-        const openFileManager = byId("openFileManager");
-        const fileManagerModal = byId("fileManagerModal");
-        const closeFileManager = byId("closeFileManager");
-        const refreshFileLibrary = byId("refreshFileLibrary");
-        const saveFileEntry = byId("saveFileEntry");
-        const fileManagerName = byId("fileManagerName");
-        const fileManagerStatus = byId("fileManagerStatus");
-        const fileLibraryList = byId("fileLibraryList");
         const openLinksInNewTab = byId("openLinksInNewTab");
         const themePreference = byId("themePreference");
         const autoRerollOnType = byId("autoRerollOnType");
-
-        function setFileManagerStatus(message, isError) {
-            if (!fileManagerStatus) {
-                return;
-            }
-            fileManagerStatus.textContent = message;
-            fileManagerStatus.classList.toggle("error", Boolean(isError));
-        }
 
         function applyLoadedStateToUi(loadedState, sourceLabel, options) {
             const opts = options || {};
@@ -1938,127 +1875,31 @@ document.addEventListener("DOMContentLoaded", function () {
             updateCssValidationHint();
             applyGrammar();
 
+            if (opts.markAsShared) {
+                lastSharedStateSignature = getStateSignature(loadedState || normalized);
+            }
+            updateShareUrlButtonState();
+
             if (opts.persist !== false) {
-                saveState();
+                scheduleAutoSaveToUrl();
             }
             if (opts.showStatus !== false) {
                 setStatus("Loaded " + sourceLabel + ".", false);
             }
         }
 
-        function getLibraryEntrySizeLabel(state) {
-            const chars = state && typeof state.grammarText === "string"
-                ? state.grammarText.length
-                : 0;
-            return chars + " chars";
-        }
-
-        function renderFileLibrary() {
-            if (!fileLibraryList) {
-                return;
-            }
-
-            const entries = loadFileLibrary().sort(function (a, b) {
-                return String(b.savedAt || "").localeCompare(String(a.savedAt || ""));
-            });
-
-            fileLibraryList.innerHTML = "";
-            if (!entries.length) {
-                const empty = document.createElement("p");
-                empty.className = "fileLibraryEmpty";
-                empty.textContent = "No local files yet. Enter a name and click Save File.";
-                fileLibraryList.appendChild(empty);
-                return;
-            }
-
-            for (let i = 0; i < entries.length; i += 1) {
-                const entry = entries[i];
-                const row = document.createElement("div");
-                row.className = "fileRow";
-
-                const meta = document.createElement("div");
-                meta.className = "fileMeta";
-
-                const name = document.createElement("div");
-                name.className = "fileName";
-                name.textContent = entry.name;
-
-                const info = document.createElement("div");
-                info.className = "fileInfo";
-                info.textContent = formatSavedAt(entry.savedAt) + " | " + getLibraryEntrySizeLabel(entry.state);
-
-                meta.appendChild(name);
-                meta.appendChild(info);
-
-                const actions = document.createElement("div");
-                actions.className = "fileActions";
-
-                const loadButton = document.createElement("button");
-                loadButton.type = "button";
-                loadButton.textContent = "Load";
-                loadButton.addEventListener("click", function () {
-                    const shouldLoad = window.confirm("Load '" + entry.name + "'? This will replace the current editor content.");
-                    if (!shouldLoad) {
-                        return;
-                    }
-
-                    applyLoadedStateToUi(entry.state, "local file '" + entry.name + "'");
-                    setFileManagerStatus("Loaded '" + entry.name + "'.", false);
-                });
-
-                const deleteButton = document.createElement("button");
-                deleteButton.type = "button";
-                deleteButton.textContent = "Delete";
-                deleteButton.addEventListener("click", function () {
-                    const shouldDelete = window.confirm("Delete '" + entry.name + "' from local files?");
-                    if (!shouldDelete) {
-                        return;
-                    }
-
-                    const remaining = loadFileLibrary().filter(function (item) {
-                        return item.name !== entry.name;
-                    });
-                    saveFileLibrary(remaining);
-                    renderFileLibrary();
-                    setFileManagerStatus("Deleted '" + entry.name + "'.", false);
-                });
-
-                actions.appendChild(loadButton);
-                actions.appendChild(deleteButton);
-                row.appendChild(meta);
-                row.appendChild(actions);
-                fileLibraryList.appendChild(row);
-            }
-        }
-
-        function openFileManagerModal() {
-            renderFileLibrary();
-            setFileManagerStatus("", false);
-            fileManagerModal.classList.remove("isHidden");
-            fileManagerName.focus();
-        }
-
-        function closeFileManagerModal() {
-            fileManagerModal.classList.add("isHidden");
-        }
-
-        const saved = await loadInitialState();
-        applyLoadedStateToUi(saved, "saved state", { persist: false, showStatus: false });
+        const initialState = await loadInitialState();
+        applyLoadedStateToUi(initialState.state, initialState.source, {
+            persist: false,
+            showStatus: false,
+            markAsShared: initialState.source === "url"
+        });
 
         byId("applyCustomGrammar").addEventListener("click", applyGrammar);
-        byId("saveWork").addEventListener("click", function () {
-            if (!formatJsonInEditor()) {
-                return;
-            }
-            saveState();
-            setStatus("JSON formatted and saved to localStorage.", false);
-        });
         byId("saveToUrl").addEventListener("click", async function () {
             if (!formatJsonInEditor()) {
                 return;
             }
-
-            saveState();
             try {
                 const shareState = await saveStateToUrl();
                 setStatus(shareState.copiedToClipboard
@@ -2072,14 +1913,13 @@ document.addEventListener("DOMContentLoaded", function () {
             if (!formatJsonInEditor()) {
                 return;
             }
-            saveState();
             setStatus("JSON formatted.", false);
         });
         byId("formatCss").addEventListener("click", function () {
             if (!formatCssInEditor()) {
                 return;
             }
-            saveState();
+            scheduleAutoSaveToUrl();
             if (!updateRenderedCssOnly()) {
                 renderOne();
             }
@@ -2088,62 +1928,15 @@ document.addEventListener("DOMContentLoaded", function () {
         byId("loadJsonButton").addEventListener("click", function () {
             fileInput.click();
         });
-        openFileManager.addEventListener("click", openFileManagerModal);
-        closeFileManager.addEventListener("click", closeFileManagerModal);
-        refreshFileLibrary.addEventListener("click", function () {
-            renderFileLibrary();
-            setFileManagerStatus("Refreshed local file list.", false);
-        });
-        saveFileEntry.addEventListener("click", function () {
-            const rawName = String(fileManagerName.value || "").trim();
-            if (!rawName) {
-                setFileManagerStatus("Enter a file name before saving.", true);
-                return;
-            }
-
-            const entries = loadFileLibrary();
-            const existingIndex = entries.findIndex(function (entry) {
-                return entry.name.toLowerCase() === rawName.toLowerCase();
-            });
-
-            if (existingIndex >= 0) {
-                const overwrite = window.confirm("A file named '" + entries[existingIndex].name + "' already exists. Overwrite it?");
-                if (!overwrite) {
-                    return;
-                }
-            }
-
-            const snapshot = {
-                name: rawName,
-                savedAt: new Date().toISOString(),
-                state: getSavedState()
-            };
-
-            if (existingIndex >= 0) {
-                entries[existingIndex] = snapshot;
-            } else {
-                entries.push(snapshot);
-            }
-
-            saveFileLibrary(entries);
-            renderFileLibrary();
-            setFileManagerStatus("Saved '" + rawName + "' to local files.", false);
-            setStatus("Saved local file '" + rawName + "'.", false);
-        });
-        fileManagerModal.addEventListener("click", function (event) {
-            if (event.target === fileManagerModal) {
-                closeFileManagerModal();
-            }
-        });
         byId("toggleEditorSize").addEventListener("click", function () {
             appConfig.layoutPresetIndex = (appConfig.layoutPresetIndex + 1) % LAYOUT_PRESETS.length;
             applyLayoutPresetState();
-            saveState();
+            scheduleAutoSaveToUrl();
         });
         byId("toggleVerticalSplit").addEventListener("click", function () {
             appConfig.verticalSplitPresetIndex = (appConfig.verticalSplitPresetIndex + 1) % VERTICAL_SPLIT_PRESETS.length;
             applyVerticalSplitPresetState();
-            saveState();
+            scheduleAutoSaveToUrl();
         });
         fileInput.addEventListener("change", function () {
             const file = fileInput.files && fileInput.files[0];
@@ -2178,19 +1971,22 @@ document.addEventListener("DOMContentLoaded", function () {
 
         openLinksInNewTab.addEventListener("change", function () {
             appConfig.openLinksInNewTab = openLinksInNewTab.checked;
-            saveState();
+            scheduleAutoSaveToUrl();
+            updateShareUrlButtonState();
             renderOne();
         });
 
         themePreference.addEventListener("change", function () {
             appConfig.themePreference = themePreference.value;
             applyThemePreference(appConfig.themePreference);
-            saveState();
+            scheduleAutoSaveToUrl();
+            updateShareUrlButtonState();
         });
 
         autoRerollOnType.addEventListener("change", function () {
             appConfig.autoRerollOnType = autoRerollOnType.checked;
-            saveState();
+            scheduleAutoSaveToUrl();
+            updateShareUrlButtonState();
             tryAutoReroll();
         });
 
@@ -2274,7 +2070,6 @@ document.addEventListener("DOMContentLoaded", function () {
             if (!formatJsonInEditor()) {
                 return;
             }
-            saveState();
             exportJsonFile();
         });
 

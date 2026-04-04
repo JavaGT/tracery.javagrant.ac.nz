@@ -158,6 +158,16 @@ button:hover {
 	background: var(--accent-soft);
 }
 
+button.isStaleShare {
+	border-color: var(--accent);
+	background: color-mix(in srgb, var(--accent-soft) 82%, var(--surface) 18%);
+	box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent), 0 0 0 4px color-mix(in srgb, var(--accent-soft) 50%, transparent);
+}
+
+button.isStaleShare:hover {
+	background: color-mix(in srgb, var(--accent-soft) 70%, var(--surface) 30%);
+}
+
 .toolbarToggle {
 	display: inline-flex;
 	align-items: center;
@@ -281,6 +291,7 @@ input {
 	position: relative;
 	flex: 1 1 auto;
 	min-height: 0;
+	min-width: 0;
 	height: auto;
 	display: flex;
 	background: var(--editor-bg);
@@ -312,8 +323,10 @@ input {
 
 .jsonEditor {
 	width: 100%;
+	max-width: 100%;
 	height: auto;
 	min-height: 0;
+	min-width: 0;
 	flex: 1 1 auto;
 	display: block;
 	position: relative;
@@ -327,7 +340,8 @@ input {
 	background: var(--editor-bg);
 	color: var(--editor-ink);
 	caret-color: var(--editor-ink);
-	overflow: auto;
+	overflow-x: auto;
+	overflow-y: auto;
 	resize: none;
 	white-space: pre;
 	word-break: normal;
@@ -560,8 +574,10 @@ body.vsplit-t0-c100 .cssEditorBlock {
 
 .cssEditorInput {
 	width: 100%;
+	max-width: 100%;
 	height: auto;
 	min-height: 0;
+	min-width: 0;
 	flex: 1 1 auto;
 	border: 0;
 	padding: 8px;
@@ -576,7 +592,8 @@ body.vsplit-t0-c100 .cssEditorBlock {
 	overflow-wrap: normal;
 	tab-size: 2;
 	font-variant-ligatures: none;
-	overflow: auto;
+	overflow-x: auto;
+	overflow-y: auto;
 }
 
 .cssEditorInput:focus {

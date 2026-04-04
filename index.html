@@ -17,9 +17,8 @@
 			<div class="toolbarTitle">Tracery Studio</div>
 			<button id="applyCustomGrammar" type="button"><i class="fa-solid fa-rotate" aria-hidden="true"></i><span>Roll</span></button>
 			<button id="saveToUrl" type="button"><i class="fa-solid fa-link" aria-hidden="true"></i><span>Share URL</span></button>
-			<button id="exportJson" type="button"><i class="fa-solid fa-file-export" aria-hidden="true"></i><span>Export JSON</span></button>
 			<button id="loadJsonButton" type="button"><i class="fa-solid fa-file-import" aria-hidden="true"></i><span>Import JSON</span></button>
-			<button id="openFileManager" type="button"><i class="fa-regular fa-folder-open" aria-hidden="true"></i><span>Files</span></button>
+			<button id="exportJson" type="button"><i class="fa-solid fa-file-export" aria-hidden="true"></i><span>Export JSON</span></button>
 			<button id="toggleEditorSize" type="button"><i class="fa-solid fa-table-columns" aria-hidden="true"></i><span>Layout: 50/50</span></button>
 			<button id="toggleVerticalSplit" type="button"><i class="fa-solid fa-grip-lines-vertical" aria-hidden="true"></i><span>VSplit: 50/50</span></button>
 			<label class="toolbarToggle" for="autoRerollOnType">
@@ -87,22 +86,6 @@
 			</label>
 			<div class="modalActions">
 				<button id="closeConfig" type="button">Close</button>
-			</div>
-		</div>
-	</div>
-
-	<div id="fileManagerModal" class="modal isHidden" role="dialog" aria-modal="true" aria-labelledby="fileManagerTitle">
-		<div class="modalCard fileManagerCard">
-			<h2 id="fileManagerTitle">Local Files</h2>
-			<div class="modalRow">
-				<input id="fileManagerName" type="text" placeholder="File name" aria-label="File name" />
-				<button id="saveFileEntry" type="button">Save File</button>
-			</div>
-			<div id="fileManagerStatus" class="jsonDebug" role="status" aria-live="polite"></div>
-			<div id="fileLibraryList" class="fileLibraryList" aria-label="Saved local files"></div>
-			<div class="modalActions">
-				<button id="refreshFileLibrary" type="button">Refresh</button>
-				<button id="closeFileManager" type="button">Close</button>
 			</div>
 		</div>
 	</div>
