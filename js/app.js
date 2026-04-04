@@ -155,6 +155,48 @@ async function decompressTextFromBase64Url(encodedText) {
     return await new Response(stream).text();
 }
 
+function decodePlainTextFromBase64(base64Text) {
+    const bytes = base64ToBytes(base64Text);
+    return new TextDecoder().decode(bytes);
+}
+
+function decodePlainTextFromBase64Url(encodedText) {
+    const bytes = base64UrlToBytes(encodedText);
+    return new TextDecoder().decode(bytes);
+}
+
+async function decodeStateTextFromUrlParam(encodedState) {
+    const candidates = [String(encodedState || "")];
+    if (String(encodedState || "").includes(" ")) {
+        candidates.push(String(encodedState || "").replace(/ /g, "+"));
+    }
+
+    let lastError = null;
+    for (let index = 0; index < candidates.length; index += 1) {
+        const candidate = candidates[index];
+
+        try {
+            return await decompressTextFromBase64Url(candidate);
+        } catch (error) {
+            lastError = error;
+        }
+
+        try {
+            return decodePlainTextFromBase64Url(candidate);
+        } catch (error) {
+            lastError = error;
+        }
+
+        try {
+            return decodePlainTextFromBase64(candidate);
+        } catch (error) {
+            lastError = error;
+        }
+    }
+
+    throw lastError || new Error("Unable to decode URL state.");
+}
+
 function getSavedState() {
     const grammarText = getEditorText();
     const outputCssText = getOutputCssText();
@@ -273,28 +315,121 @@ function getOutputShadowRoot() {
     return host.shadowRoot;
 }
 
+function logStartup(message, details) {
+    if (typeof details === "undefined") {
+        console.info("[Tracery startup] " + message);
+        return;
+    }
+    console.info("[Tracery startup] " + message, details);
+}
+
 async function loadStateFromUrl() {
     const searchParams = new URLSearchParams(window.location.search);
     const encodedState = searchParams.get(SHARE_STATE_PARAM);
     if (!encodedState) {
+        logStartup("No URL state found.");
         return null;
     }
 
     try {
-        const stateJson = await decompressTextFromBase64Url(encodedState);
+        const stateJson = await decodeStateTextFromUrlParam(encodedState);
         const parsed = JSON.parse(stateJson);
-        return normalizeLoadedState(parsed);
+        const normalized = normalizeLoadedState(parsed);
+        logStartup("Loaded state from URL.", {
+            encodedLength: encodedState.length,
+            grammarChars: (normalized.grammarText || "").length,
+            hasCss: Boolean((normalized.outputCssText || "").trim())
+        });
+        return normalized;
     } catch (error) {
+        logStartup("Failed to parse URL state.", {
+            encodedLength: encodedState.length,
+            error: error && error.message ? error.message : String(error)
+        });
         return null;
     }
 }
 
+function loadStateFromStorage() {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) {
+            logStartup("No local storage state found.");
+            return null;
+        }
+
+        const parsed = JSON.parse(raw);
+        const normalized = normalizeLoadedState(parsed);
+        logStartup("Loaded state from local storage.", {
+            grammarChars: (normalized.grammarText || "").length,
+            hasCss: Boolean((normalized.outputCssText || "").trim())
+        });
+        return normalized;
+    } catch (error) {
+        logStartup("Failed to parse local storage state.", {
+            error: error && error.message ? error.message : String(error)
+        });
+        return null;
+    }
+}
+
+function hasMeaningfulStoredWork(state) {
+    return Boolean(state && typeof state.grammarText === "string" && state.grammarText.trim());
+}
+
+function getDefaultState() {
+    return {
+        grammarText: "",
+        outputCssText: "",
+        config: {
+            openLinksInNewTab: DEFAULT_CONFIG.openLinksInNewTab,
+            themePreference: DEFAULT_CONFIG.themePreference,
+            autoRerollOnType: DEFAULT_CONFIG.autoRerollOnType,
+            layoutPresetIndex: DEFAULT_CONFIG.layoutPresetIndex,
+            verticalSplitPresetIndex: DEFAULT_CONFIG.verticalSplitPresetIndex
+        }
+    };
+}
+
 async function loadInitialState() {
+    logStartup("Starting initial state resolution.");
     const sharedState = await loadStateFromUrl();
+    const storedState = loadStateFromStorage();
+
+    logStartup("State source availability.", {
+        hasUrlState: Boolean(sharedState),
+        hasStoredState: Boolean(storedState),
+        hasMeaningfulStoredWork: hasMeaningfulStoredWork(storedState)
+    });
+
+    if (sharedState && hasMeaningfulStoredWork(storedState)) {
+        const loadUrlState = window.confirm(
+            "This page has saved state in both the URL and local storage.\n\n"
+            + "Click OK to load the URL state.\n"
+            + "Click Cancel to keep your local storage state.\n\n"
+            + "If you load the URL state, your local storage work may be overwritten when you save. "
+            + "To keep it, make a backup first by clicking Export JSON (Save to JSON)."
+        );
+
+        logStartup("User resolved URL vs local storage prompt.", {
+            selectedSource: loadUrlState ? "url" : "storage"
+        });
+
+        return loadUrlState ? sharedState : storedState;
+    }
+
     if (sharedState) {
+        logStartup("Using URL state.");
         return sharedState;
     }
-    return loadState();
+
+    if (storedState) {
+        logStartup("Using local storage state.");
+        return storedState;
+    }
+
+    logStartup("No saved state found; using defaults.");
+    return getDefaultState();
 }
 
 async function saveStateToUrl() {
@@ -1648,56 +1783,7 @@ function saveState() {
 }
 
 function loadState() {
-    try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        const parsed = raw ? JSON.parse(raw) : {};
-        const loadedConfig = parsed.config || {};
-        const themePreference = ["system", "light", "dark"].includes(loadedConfig.themePreference)
-            ? loadedConfig.themePreference
-            : DEFAULT_CONFIG.themePreference;
-        const legacyLayoutIndex = loadedConfig.editorExpanded ? 0 : DEFAULT_CONFIG.layoutPresetIndex;
-        const layoutPresetIndex = Number.isInteger(loadedConfig.layoutPresetIndex)
-            && loadedConfig.layoutPresetIndex >= 0
-            && loadedConfig.layoutPresetIndex < LAYOUT_PRESETS.length
-            ? loadedConfig.layoutPresetIndex
-            : legacyLayoutIndex;
-        const verticalSplitPresetIndex = Number.isInteger(loadedConfig.verticalSplitPresetIndex)
-            && loadedConfig.verticalSplitPresetIndex >= 0
-            && loadedConfig.verticalSplitPresetIndex < VERTICAL_SPLIT_PRESETS.length
-            ? loadedConfig.verticalSplitPresetIndex
-            : DEFAULT_CONFIG.verticalSplitPresetIndex;
-        const extracted = extractEmbeddedCssFromGrammarText(
-            parsed.grammarText || "",
-            parsed.outputCssText || DEFAULT_OUTPUT_CSS
-        );
-        return {
-            grammarText: extracted.grammarText,
-            outputCssText: extracted.cssText,
-            config: {
-                openLinksInNewTab: typeof loadedConfig.openLinksInNewTab === "boolean"
-                    ? loadedConfig.openLinksInNewTab
-                    : DEFAULT_CONFIG.openLinksInNewTab,
-                themePreference: themePreference,
-                autoRerollOnType: typeof loadedConfig.autoRerollOnType === "boolean"
-                    ? loadedConfig.autoRerollOnType
-                    : DEFAULT_CONFIG.autoRerollOnType,
-                layoutPresetIndex: layoutPresetIndex,
-                verticalSplitPresetIndex: verticalSplitPresetIndex
-            }
-        };
-    } catch (error) {
-        return {
-            grammarText: "",
-            outputCssText: "",
-            config: {
-                openLinksInNewTab: DEFAULT_CONFIG.openLinksInNewTab,
-                themePreference: DEFAULT_CONFIG.themePreference,
-                autoRerollOnType: DEFAULT_CONFIG.autoRerollOnType,
-                layoutPresetIndex: DEFAULT_CONFIG.layoutPresetIndex,
-                verticalSplitPresetIndex: DEFAULT_CONFIG.verticalSplitPresetIndex
-            }
-        };
-    }
+    return loadStateFromStorage() || getDefaultState();
 }
 
 function tryAutoReroll() {
