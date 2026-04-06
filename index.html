@@ -32,12 +32,14 @@
         <span>Load</span>
       </button>
 
-      <button class="toolbar-btn" id="btn-load-default" title="Load default starter grammar">
+      <button class="toolbar-btn" id="btn-examples" title="Browse example grammars">
         <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
-          <path d="M3 3h10v10H3z" />
-          <path d="M5.5 5.5h5M5.5 8h5M5.5 10.5h3.5" />
+          <rect x="2" y="2" width="5" height="5" rx="1"/>
+          <rect x="9" y="2" width="5" height="5" rx="1"/>
+          <rect x="2" y="9" width="5" height="5" rx="1"/>
+          <rect x="9" y="9" width="5" height="5" rx="1"/>
         </svg>
-        <span>Load Default</span>
+        <span>Examples</span>
       </button>
 
       <button class="toolbar-btn" id="btn-save" title="Save grammar to .json file (Ctrl+S)">
@@ -67,12 +69,33 @@
       </button>
 
       <button class="toolbar-btn" id="btn-settings" title="Open settings">
-        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
-          <path
-            d="M8 2.2l1 .5 1.2-.2.8 1 .9.5v1.2l.8 1-.8 1v1.2l-.9.5-.8 1-1.2-.2-1 .5-1-.5-1.2.2-.8-1-.9-.5V8.2l-.8-1 .8-1V5l.9-.5.8-1 1.2.2 1-.5z" />
-          <circle cx="8" cy="8" r="2.1" />
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
         </svg>
         <span>Settings</span>
+      </button>
+
+      <button class="toolbar-btn" id="btn-help" title="Open Help & Documentation">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+          <circle cx="8" cy="8" r="7"/>
+          <path d="M8 12v.01M6.5 5.5c0-1 3-1 3 0s-1 2-1.5 2v1.5"/>
+        </svg>
+        <span>Help</span>
+      </button>
+
+      <div class="toolbar-sep"></div>
+
+      <button class="toolbar-btn" id="btn-toggle-editors" title="Hide/show editor panels">
+        <svg id="icon-editors-hide" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+          <rect x="2" y="2" width="5" height="12" rx="1"/>
+          <path d="M9 5h5M9 8h5M9 11h5"/>
+        </svg>
+        <svg id="icon-editors-show" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" style="display:none">
+          <rect x="2" y="2" width="5" height="12" rx="1" stroke-dasharray="2 1" opacity="0.4"/>
+          <path d="M9 5h5M9 8h5M9 11h5"/>
+        </svg>
+        <span id="label-toggle-editors">Hide Editors</span>
       </button>
 
       <div class="spacer"></div>
@@ -123,31 +146,31 @@
 
       <!-- ── Preview panel ───────────────────────── -->
       <section class="panel" id="panel-preview" aria-label="Output preview">
-        <div class="panel-header">
+        <div class="panel-header preview-panel-header">
           <div class="panel-label">
             <span class="dot panel-dot-preview"></span>
             output
           </div>
+          <div class="origin-wrap">
+            <label class="origin-label" for="origin-input">origin:</label>
+            <input type="text" id="origin-input" value="origin" spellcheck="false"
+              autocomplete="off" autocapitalize="off" class="origin-input"
+              title="The grammar symbol to start from" aria-label="Start symbol">
+          </div>
           <div class="panel-actions">
+            <label id="auto-reroll-label">
+              <input type="checkbox" id="auto-reroll-cb" checked>
+              auto
+            </label>
+            <button id="btn-reroll" title="Re-roll output (Ctrl+Enter)">
+              <span class="reroll-icon">⟳</span>
+              Reroll
+            </button>
             <span id="reroll-stat" class="preview-stat">↺ 0</span>
           </div>
         </div>
 
         <div id="preview-content">
-          <div id="preview-toolbar">
-            <button id="btn-reroll" title="Re-roll output (Ctrl+Enter)">
-              <span class="reroll-icon">⟳</span>
-              Reroll
-            </button>
-
-            <label id="auto-reroll-label">
-              <input type="checkbox" id="auto-reroll-cb" checked>
-              auto
-            </label>
-
-            <div class="preview-spacer"></div>
-          </div>
-
           <div id="preview-output-wrap">
             <div id="preview-host"></div>
           </div>
@@ -244,6 +267,77 @@
       </label>
       <div class="modal-actions">
         <button class="modal-btn" id="btn-settings-close">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Examples modal ───────────────────────────── -->
+  <div id="examples-overlay" role="dialog" aria-modal="true" aria-labelledby="examples-title">
+    <div class="examples-modal">
+      <div class="examples-header">
+        <div>
+          <h3 id="examples-title">Examples</h3>
+          <p class="examples-subtitle">Click any example to load it into the editor. Great starting points for your project!</p>
+        </div>
+        <button class="icon-btn examples-close" id="btn-examples-close" aria-label="Close examples">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 3l10 10M13 3L3 13"/>
+          </svg>
+        </button>
+      </div>
+      <div class="examples-filters" id="examples-filters">
+        <button class="ex-filter active" data-filter="all">All</button>
+      </div>
+      <div class="examples-grid" id="examples-grid">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Help modal ─────────────────────────────── -->
+  <div id="help-overlay" role="dialog" aria-modal="true" aria-labelledby="help-title">
+    <div class="modal help-modal" style="max-height: 85vh; overflow-y: auto; max-width: 600px; width: 90vw;">
+      <h3 id="help-title">Documentation</h3>
+      
+      <div class="help-content doc-content">
+        <h4>Content Output Sanitization</h4>
+        <p>To ensure safety when viewing generated stories, Tracery Studio limits the HTML features that can appear in the output. The complete list of whitelisted elements is:</p>
+        
+        <h5>Allowed Tags</h5>
+        <div id="help-allowed-tags" style="background: rgba(0,0,0,0.05); padding: 1rem; border-radius: 4px; font-family: monospace; font-size: 0.9em; margin-bottom: 1rem; line-height: 1.8;">
+          <!-- Populated by JS -->
+        </div>
+
+        <h5>Allowed CSS & Attributes</h5>
+        <p>A broad range of CSS styling is permitted via the <code>style</code> attribute, including sizes, typography, flexbox structures, colors, padding, and pseudo selectors like <code>scroll-margin</code>.</p>
+        <div id="help-allowed-css" style="background: rgba(0,0,0,0.05); padding: 1rem; border-radius: 4px; font-family: monospace; font-size: 0.9em; margin-bottom: 1rem; line-height: 1.8;">
+          <!-- Populated by JS -->
+        </div>
+        <p>Allowed tag-specific attributes include:</p>
+        <div id="help-allowed-attrs" style="background: rgba(0,0,0,0.05); padding: 1rem; border-radius: 4px; font-family: monospace; font-size: 0.9em; margin-bottom: 1rem; line-height: 1.8;">
+          <!-- Populated by JS -->
+        </div>
+        <p style="font-size: 0.9em; opacity: 0.8;">Note: class and id attributes are allowed for targeting with your CSS editor.</p>
+        
+        <hr style="margin: 1.5rem 0; opacity: 0.2;">
+
+        <h4>Special Links (Jump & Origin)</h4>
+        <p>You can create interactive documents by placing specially formatted links in your text:</p>
+        <ul>
+          <li style="margin-bottom: 1rem;">
+            <strong><code>scrollto:</code></strong> <br> Use CSS selectors to create page jump links. <br>
+            <code>&lt;a href="scrollto:.chapter-2"&gt;Jump to Chapter 2&lt;/a&gt;</code> <br>
+            <small style="opacity: 0.8;">Hint: use <i>scroll-margin-top</i> to ensure jump links don't jump underneath sticky headers.</small>
+          </li>
+          <li>
+            <strong><code>setorigin:</code></strong> <br> Use Tracery symbol IDs to re-roll the entire document starting from a new symbol. This behaves like a Choose-Your-Own-Adventure page jump! <br>
+            <code>&lt;a href="setorigin:basement"&gt;Go into the basement&lt;/a&gt;</code>
+          </li>
+        </ul>
+      </div>
+
+      <div class="modal-actions" style="margin-top: 1.5rem;">
+        <button class="modal-btn" id="btn-help-close">Close</button>
       </div>
     </div>
   </div>

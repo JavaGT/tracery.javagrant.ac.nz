@@ -1,32 +1,41 @@
 // outputSanitizer.js - Safe HTML for Tracery output
 
-const ALLOWED_TAGS = new Set([
+export const ALLOWED_TAGS = new Set([
   'p', 'br', 'b', 'strong', 'i', 'em', 'u', 's', 'del', 'ins',
   'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
   'ul', 'ol', 'li', 'dl', 'dt', 'dd',
   'blockquote', 'pre', 'code', 'kbd', 'samp',
-  'span', 'div', 'section', 'article', 'aside', 'header', 'footer',
+  'span', 'div', 'section', 'article', 'aside', 'header', 'footer', 'nav', 'main',
   'a', 'abbr', 'cite', 'q', 'mark', 'small', 'sub', 'sup',
-  'table', 'thead', 'tbody', 'tr', 'th', 'td', 'caption',
+  'table', 'thead', 'tbody', 'tr', 'th', 'td', 'caption', 'colgroup', 'col',
   'figure', 'figcaption', 'hr',
+  'img', 'picture', 'source', 'audio', 'video', 'track',
+  'details', 'summary',
+  'button', 'label', 'progress', 'meter', 'time'
 ]);
 
-const ALLOWED_ATTRS = new Set([
+export const ALLOWED_ATTRS = new Set([
   'class', 'id', 'title', 'aria-label', 'aria-hidden', 'role',
   'href', 'target', 'rel',
   'style',
   'colspan', 'rowspan', 'scope',
   'lang', 'dir',
+  'src', 'alt', 'width', 'height', 'loading',
+  'controls', 'loop', 'muted', 'poster',
+  'open', 'value', 'max', 'min', 'datetime'
 ]);
 
-const ALLOWED_URL_SCHEMES = new Set(['http', 'https', 'mailto', '#']);
+// 'setorigin' is a pseudo-protocol handled by the shadow-DOM click interceptor
+const ALLOWED_URL_SCHEMES = new Set(['http', 'https', 'mailto', '#', 'setorigin', 'scrollto']);
 
-const ALLOWED_CSS_PROPS = new Set([
+export const ALLOWED_CSS_PROPS = new Set([
   'color', 'background', 'background-color', 'background-image',
   'font-size', 'font-weight', 'font-style', 'font-family', 'font-variant',
   'text-align', 'text-decoration', 'text-transform', 'letter-spacing', 'line-height',
   'margin', 'margin-top', 'margin-right', 'margin-bottom', 'margin-left',
   'padding', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
+  'scroll-margin', 'scroll-margin-top', 'scroll-margin-right', 'scroll-margin-bottom', 'scroll-margin-left',
+  'scroll-padding', 'scroll-padding-top', 'scroll-padding-right', 'scroll-padding-bottom', 'scroll-padding-left',
   'border', 'border-radius', 'border-color', 'border-style', 'border-width',
   'display', 'flex', 'flex-direction', 'align-items', 'justify-content',
   'width', 'max-width', 'min-width', 'height', 'max-height', 'min-height',
@@ -37,6 +46,7 @@ const ALLOWED_CSS_PROPS = new Set([
 
 function sanitizeUrl(url) {
   try {
+    if (url.startsWith('setorigin:') || url.startsWith('scrollto:')) return url;
     const u = new URL(url, window.location.href);
     if (ALLOWED_URL_SCHEMES.has(u.protocol.replace(':', ''))) return url;
     if (url.startsWith('#')) return url;
