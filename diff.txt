@@ -1,0 +1,138 @@
+commit 6ee5d5475f4d8d80672b5cfb311a54edf01b7763
+Author: User <user@Users-MacBook-Air-6.local>
+Date:   Wed Apr 8 11:05:49 2026 +1200
+
+    layout
+
+diff --git a/index.html b/index.html
+index 2e5882c..8876319 100644
+--- a/index.html
++++ b/index.html
+@@ -25,6 +25,20 @@
+ 
+       <div class="toolbar-sep"></div>
+ 
++      <div style="display: flex; align-items: center; gap: 0.5em;">
++        <button class="toolbar-btn" id="btn-toggle-editors" title="Hide/show editor panels">
++          <svg id="icon-editors-hide" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
++            <rect x="2" y="2" width="5" height="12" rx="1"/>
++            <path d="M9 5h5M9 8h5M9 11h5"/>
++          </svg>
++          <svg id="icon-editors-show" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" style="display:none">
++            <rect x="2" y="2" width="5" height="12" rx="1" stroke-dasharray="2 1" opacity="0.4"/>
++            <path d="M9 5h5M9 8h5M9 11h5"/>
++          </svg>
++          <span id="label-toggle-editors">Hide Editors</span>
++        </button>
++      </div>
++
+       <button class="toolbar-btn" id="btn-load" title="Load grammar from .json file">
+         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+           <path d="m6 14 1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H18a2 2 0 0 1 2 2v2"></path>
+@@ -41,25 +55,6 @@
+         <span>Save</span>
+       </button>
+ 
+-      <button class="toolbar-btn" id="btn-examples" title="Browse example grammars">
+-        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+-          <rect x="2" y="2" width="5" height="5" rx="1"/>
+-          <rect x="9" y="2" width="5" height="5" rx="1"/>
+-          <rect x="2" y="9" width="5" height="5" rx="1"/>
+-          <rect x="9" y="9" width="5" height="5" rx="1"/>
+-        </svg>
+-        <span>Examples</span>
+-      </button>
+-
+-      <button class="toolbar-btn" id="btn-format" title="Format JSON (Ctrl+Shift+F)">
+-        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+-          <path d="M2 4h12M2 8h8M2 12h10" />
+-        </svg>
+-        <span>Format</span>
+-      </button>
+-
+-      <div class="toolbar-sep"></div>
+-
+       <button class="toolbar-btn primary" id="btn-share" title="Share via URL">
+         <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+           <circle cx="12" cy="4" r="1.5" />
+@@ -70,36 +65,32 @@
+         <span>Share URL</span>
+       </button>
+ 
+-      <button class="toolbar-btn" id="btn-settings" title="Open settings">
+-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+-          <circle cx="12" cy="12" r="3"></circle>
+-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+-        </svg>
+-        <span>Settings</span>
+-      </button>
+-
+-      <button class="toolbar-btn" id="btn-help" title="Open Help & Documentation">
+-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+-          <circle cx="12" cy="12" r="10"></circle>
+-          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+-          <line x1="12" y1="17" x2="12.01" y2="17"></line>
++      <button class="toolbar-btn" id="btn-format" title="Format JSON (Ctrl+Shift+F)">
++        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
++          <path d="M2 4h12M2 8h8M2 12h10" />
+         </svg>
+-        <span>Help</span>
++        <span>Format</span>
+       </button>
+ 
+       <div class="toolbar-sep"></div>
++      <div style="margin-left:auto; display:flex; gap:0.5em; align-items:center;">
++        <button class="toolbar-btn" id="btn-settings" title="Open settings">
++          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
++            <circle cx="12" cy="12" r="3"></circle>
++            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
++          </svg>
++          <span>Settings</span>
++        </button>
++        <button class="toolbar-btn primary" id="btn-help" title="Open Help & Documentation">
++          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
++            <circle cx="12" cy="12" r="10"></circle>
++            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
++            <line x1="12" y1="17" x2="12.01" y2="17"></line>
++          </svg>
++          <span>Help</span>
++        </button>
++      </div>
+ 
+-      <button class="toolbar-btn" id="btn-toggle-editors" title="Hide/show editor panels">
+-        <svg id="icon-editors-hide" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+-          <rect x="2" y="2" width="5" height="12" rx="1"/>
+-          <path d="M9 5h5M9 8h5M9 11h5"/>
+-        </svg>
+-        <svg id="icon-editors-show" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" style="display:none">
+-          <rect x="2" y="2" width="5" height="12" rx="1" stroke-dasharray="2 1" opacity="0.4"/>
+-          <path d="M9 5h5M9 8h5M9 11h5"/>
+-        </svg>
+-        <span id="label-toggle-editors">Hide Editors</span>
+-      </button>
+ 
+       <div class="spacer"></div>
+ 
+@@ -326,14 +317,20 @@
+       </div>
+ 
+       <div class="help-content doc-content" style="padding: 20px 22px;">
++        <h4>Tips &amp; How-To</h4>
++        <ul>
++          <li><strong>Browse Examples:</strong> Click the <b>Examples</b> button in the top toolbar to open a gallery of ready-made grammars. You can load any example as a starting point for your own project.</li>
++          <li><strong>Sharing Links:</strong> Use the <b>Share URL</b> button to generate a link that encodes your grammar and CSS. <br> <b>Tip:</b> If you close the editor panels (using the "Hide Editors" button) <em>before</em> creating a share link, the link will open on the other end with the editors hidden for a clean, presentation-style view.</li>
++          <li><strong>Editor Visibility:</strong> Toggle the editor panels using the "Hide Editors" button in the toolbar. This is useful for previewing your output or sharing a focused view.</li>
++          <li><strong>Keyboard Shortcuts:</strong> Common shortcuts include <kbd>Ctrl+Enter</kbd> (reroll), <kbd>Ctrl+S</kbd> (save), <kbd>Ctrl+⇧F</kbd> (format), and <kbd>Tab</kbd> (indent).</li>
++        </ul>
++        <hr style="margin: 1.5rem 0; opacity: 0.2;">
+         <h4>Content Output Sanitization</h4>
+         <p>To ensure safety when viewing generated stories, Tracery Studio limits the HTML features that can appear in the output. The complete list of whitelisted elements is:</p>
+-        
+         <h5>Allowed Tags</h5>
+         <div id="help-allowed-tags" style="background: rgba(0,0,0,0.05); padding: 1rem; border-radius: 4px; font-family: monospace; font-size: 0.9em; margin-bottom: 1rem; line-height: 1.8;">
+           <!-- Populated by JS -->
+         </div>
+-
+         <h5>Allowed CSS & Attributes</h5>
+         <p>A broad range of CSS styling is permitted via the <code>style</code> attribute, including sizes, typography, flexbox structures, colors, padding, and pseudo selectors like <code>scroll-margin</code>.</p>
+         <div id="help-allowed-css" style="background: rgba(0,0,0,0.05); padding: 1rem; border-radius: 4px; font-family: monospace; font-size: 0.9em; margin-bottom: 1rem; line-height: 1.8;">
