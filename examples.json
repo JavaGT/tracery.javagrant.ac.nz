@@ -575,8 +575,8 @@
     "description": "Use [var:#symbol#] to lock a time-of-day theme so creatures, light, and mood are always consistent within each generated story.",
     "grammar": {
       "origin": [
-        "#[time:day][skyWord:golden][animalPool:dayAnimal][ambiance:warm and still]scene#",
-        "#[time:night][skyWord:silver][animalPool:nightAnimal][ambiance:cool and hushed]scene#"
+        "#[time:#day#][skyWord:#golden#][animalPool:#dayAnimal#][ambiance:#warm and still#]scene#",
+        "#[time:#night#][skyWord:#silver#][animalPool:#nightAnimal#][ambiance:#cool and hushed#]scene#"
       ],
       "scene": "<div class='tale'><h2>A #time# in the #place#</h2><p>The #skyWord# light lay across the #place#. The air was #ambiance#.</p><p>A <b>#animalPool#</b> moved through the undergrowth. #moment#</p><p class='close'>#close#</p></div>",
       "dayAnimal": [
