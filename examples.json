@@ -1511,5 +1511,127 @@
       ],
       "_cssStyles": ""
     }
+  },
+  {
+    "id": "student-example-4",
+    "category": "Student Examples",
+    "title": "Student Example 4",
+    "description": "A student's work",
+    "grammar": {
+      "origin": [
+        "<img src=\"https://api.memegen.link/images/custom/#womens#-#weekly#/#favourite#~n~n~n.png?background=#topimage#\"/><img src=\"https://api.memegen.link/images/custom/_/.png?background=#middleimage1#\"/><img src=\"https://api.memegen.link/images/custom/_/#toppicks#.png?background=#middleimage2#\"/><img src=\"https://api.memegen.link/images/custom/#topstories#/#bottomstories#.png?background=#bottomimage#\"/>"
+      ],
+      "topimage": [
+        "https://i.imgur.com/YOhfS7l.png",
+        "https://i.imgur.com/agLRDYE.png",
+        "https://i.imgur.com/nnA4Gk1.png",
+        "https://i.imgur.com/gqQ0Qec.png"
+      ],
+      "middleimage1": [
+        "https://i.imgur.com/WQn7e7O.png",
+        "https://i.imgur.com/vgCyYXv.png",
+        "https://i.imgur.com/U8ktY6O.png",
+        "https://i.imgur.com/AJYkaXC.png"
+      ],
+      "middleimage2": [
+        "https://i.imgur.com/mSPDBwI.png",
+        "https://i.imgur.com/2nsbDOa.png",
+        "https://i.imgur.com/u9QzlsF.png",
+        "https://i.imgur.com/pGdMjby.png"
+      ],
+      "bottomimage": [
+        "https://i.imgur.com/bwMvTQf.png",
+        "https://i.imgur.com/7OQl0ME.png",
+        "https://i.imgur.com/sIApVU5.png",
+        "https://i.imgur.com/3WdgrJW.png"
+      ],
+      "womens": [
+        "Women's",
+        "Ladies",
+        "Female's",
+        "Lasses"
+      ],
+      "weekly": [
+        "Fortnightly",
+        "Daily",
+        "Weekly",
+        "Bi-monthly",
+        "Annually"
+      ],
+      "toppicks": [
+        "today's top picks:",
+        "our top stories:",
+        "within these pages:",
+        "who we're publicly humiliating today:",
+        "today's privacy invasions:"
+      ],
+      "topstories": [
+        "#names# set to star in new movie '#movies#'~n#names# caught abusing #abusing#~q~q"
+      ],
+      "bottomstories": [
+        "#names# and #names#. Siblings or dating~q ~n #names# and #names# split after rumours of #allegations#"
+      ],
+      "names": [
+        "Justin Fever",
+        "Kim Eyelashian",
+        "Brad Pott",
+        "Cardi A",
+        "Ariana Venti",
+        "Angelina Joe",
+        "Johnny Deep",
+        "Dwayne 'The Pebble' John",
+        "Dua Lupa",
+        "LeBron Fames",
+        "Candle Jenner",
+        "Justin Timberpond",
+        "Snoop Catt",
+        "Doja Dog",
+        "Miley Citrus",
+        "Khloe Doordashian",
+        "Nicki Mirage",
+        "Vin 91-Regular",
+        "Shawn Mentos",
+        "Kevin Fart",
+        "Wizard Kalifa",
+        "Demi Tomato",
+        "Tom Bruise",
+        "Emma Stoned",
+        "Queen Elizabeth II"
+      ],
+      "movies": [
+        "The Codfather",
+        "Forrest Stump",
+        "The Lion Queen",
+        "Back from the Future",
+        "Pulp--free Fiction",
+        "Planet of the Grapes",
+        "Hug Club"
+      ],
+      "abusing": [
+        "hard drugs",
+        "the tax system",
+        "the economy",
+        "Starbucks free refills",
+        "free testers in Mecca",
+        "#names#"
+      ],
+      "allegations": [
+        "pregnancy",
+        "tax evasion",
+        "skinny jeans",
+        "a gas leak",
+        "'size issues'",
+        "a third party"
+      ],
+      "favourite": [
+        "your favourite privacy invaders",
+        "we keep your insecurities up and your wallets down!",
+        "crushers of men and self--confidence",
+        "the royal wedding is more importent than your loved ones",
+        "please keep giving us money",
+        "the biggest advocators of skinny white women"
+      ],
+      "_cssStyles": "img {max-width:80%;}"
+    }
   }
 ]
