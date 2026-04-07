@@ -1631,7 +1631,7 @@
         "please keep giving us money",
         "the biggest advocators of skinny white women"
       ],
-      "_cssStyles": "img {max-width:80%;}"
+      "_cssStyles": "img {max-width:80%; margin:0 auto;}"
     }
   }
 ]
