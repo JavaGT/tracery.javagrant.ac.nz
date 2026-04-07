@@ -1509,7 +1509,7 @@
         "Answers",
         "Overview"
       ],
-      "_cssStyles": ""
+      "_cssStyles": "div {background:white;}"
     }
   },
   {
