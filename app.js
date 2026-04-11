@@ -444,6 +444,11 @@ function initShadow() {
   shadowRoot = previewHost.attachShadow({ mode: 'open' });
   shadowRoot.innerHTML = `
     <style id="builtin-style">
+      #output {
+        min-height: 100%;
+        min-width: 100%;
+        position: fixed;
+      }
       .origin-warning {
         font-family: sans-serif;
         padding: 1rem 1.2rem;

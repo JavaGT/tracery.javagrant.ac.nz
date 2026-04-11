@@ -1633,5 +1633,17 @@
       ],
       "_cssStyles": "img {max-width:80%; margin:0 10%;}"
     }
+  },
+  {
+    "id": "full-page-background",
+    "category": "Interactive",
+    "title": "Full Page Background",
+    "description": "Demonstrates how to use #output to change the entire preview background color. Since #output is fixed and fills the screen, it acts as a global page container.",
+    "grammar": {
+      "origin": [
+        "<div class='card'><h1>Interactive Background</h1><p>The background of this entire preview is being set by the <code>#output</code> selector in the CSS editor.</p><p>Try changing the background color in the CSS editor to see it update live!</p></div>"
+      ],
+      "_cssStyles": "#output {\n  background: #4a0404;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  text-align: center;\n  color: #ffcccc;\n  font-family: 'DM Sans', sans-serif;\n}\n\n.card {\n  background: rgba(0,0,0,0.3);\n  padding: 3rem;\n  border-radius: 2rem;\n  border: 1px solid rgba(255,255,255,0.1);\n  backdrop-filter: blur(10px);\n  box-shadow: 0 20px 50px rgba(0,0,0,0.5);\n  max-width: 400px;\n}\n\nh1 {\n  margin: 0 0 1rem;\n  font-size: 2rem;\n  letter-spacing: -1px;\n}\n\ncode {\n  background: rgba(255,255,255,0.1);\n  padding: 2px 6px;\n  border-radius: 4px;\n  font-family: monospace;\n}"
+    }
   }
 ]
