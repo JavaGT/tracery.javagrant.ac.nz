@@ -447,7 +447,7 @@ function initShadow() {
       #output {
         min-height: 100%;
         min-width: 100%;
-        position: fixed;
+        position: absolute;
       }
       .origin-warning {
         font-family: sans-serif;
