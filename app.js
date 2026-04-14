@@ -16,6 +16,7 @@ function createGrammar(obj) {
 }
 import { sanitizeHTML, isLikelyHTML, ALLOWED_TAGS, ALLOWED_ATTRS, ALLOWED_CSS_PROPS } from './js/outputSanitizer.js';
 import { buildShareURL, loadFromURL, CSS_EMBED_KEY } from './js/stateCodec.js';
+import { fetchGrammarTextFromRemote } from './js/remoteGrammarUrl.js';
 
 // ── Default grammar ───────────────────────────────────────────────
 const DEFAULT_GRAMMAR = {
@@ -73,6 +74,8 @@ let rerollCount = 0;
 let autoSyncTimer = null;
 let autoSyncVersion = 0;
 let originSymbol = 'origin';
+/** When true (hosted JSON via Load URL only), grammar/CSS editors are read-only until the user confirms local editing. */
+let externalViewCleanMode = false;
 let syntaxHighlightingEnabled = {
   grammar: true,
   css: true
@@ -92,6 +95,12 @@ const btnShare = document.getElementById('btn-share');
 const btnFormat = document.getElementById('btn-format');
 const btnSave = document.getElementById('btn-save');
 const btnLoad = document.getElementById('btn-load');
+const btnLoadUrlOpen = document.getElementById('btn-load-url');
+const loadUrlOverlay = document.getElementById('load-url-overlay');
+const loadUrlInput = document.getElementById('load-url-input');
+const btnLoadUrlClose = document.getElementById('btn-load-url-close');
+const btnLoadUrlCancel = document.getElementById('btn-load-url-cancel');
+const btnLoadUrlSubmit = document.getElementById('btn-load-url-submit');
 const btnExamples = document.getElementById('btn-examples');
 const btnSettings = document.getElementById('btn-settings');
 const btnLoadFile = document.getElementById('btn-load-file');
@@ -731,6 +740,9 @@ async function syncUrlToCurrentState() {
 }
 
 function scheduleAutoUrlSync() {
+  if (externalViewCleanMode) {
+    return;
+  }
   if (autoSyncTimer) {
     clearTimeout(autoSyncTimer);
   }
@@ -910,6 +922,10 @@ function formatCss(raw) {
 }
 
 function formatGrammar() {
+  if (externalViewCleanMode) {
+    showToast('Enable editing to format JSON');
+    return;
+  }
   const result = parseGrammar(grammarEditor.value);
   if (!result.ok) {
     showToast('Fix JSON errors before formatting');
@@ -933,8 +949,48 @@ function formatGrammar() {
   showToast('Formatted ✓');
 }
 
+function stripEncodedGrammarFromLocation() {
+  const u = new URL(window.location.href);
+  if (!u.searchParams.has('g')) return;
+  u.searchParams.delete('g');
+  window.history.replaceState(null, '', u.toString());
+}
+
+function setExternalViewCleanMode(active) {
+  externalViewCleanMode = !!active;
+  if (grammarEditor) grammarEditor.readOnly = externalViewCleanMode;
+  if (cssEditor) cssEditor.readOnly = externalViewCleanMode;
+
+  const banner = document.getElementById('external-clean-banner');
+  if (banner) banner.hidden = !externalViewCleanMode;
+
+  if (btnFormat) btnFormat.disabled = externalViewCleanMode;
+
+  const undoG = document.getElementById('btn-undo-grammar');
+  const redoG = document.getElementById('btn-redo-grammar');
+  const undoC = document.getElementById('btn-undo-css');
+  const redoC = document.getElementById('btn-redo-css');
+  for (const b of [undoG, redoG, undoC, redoC]) {
+    if (b) b.disabled = externalViewCleanMode;
+  }
+}
+
+function promptEnableEditingFromExternalClean() {
+  if (!externalViewCleanMode) return;
+  const ok = window.confirm(
+    'Enable local editing? Your grammar and CSS will be written into this tab’s address bar and kept in sync as you work (live URL mode). The hosted file you opened from will not be updated.'
+  );
+  if (!ok) return;
+  setExternalViewCleanMode(false);
+  scheduleAutoUrlSync();
+  showToast('Editing enabled — URL sync on');
+}
+
 // ── Load grammar into editors ─────────────────────────────────────
-function loadGrammar(obj) {
+function loadGrammar(obj, opts = {}) {
+  const externalClean = !!opts.externalClean;
+  const stripEncodedGrammarFromUrl = !!opts.stripEncodedGrammarFromUrl;
+
   const displayGrammar = cloneGrammarWithoutEmbeddedCss(obj);
   grammarObj = displayGrammar;
   cssText = obj && typeof obj[CSS_EMBED_KEY] === 'string' ? obj[CSS_EMBED_KEY] : '';
@@ -959,8 +1015,17 @@ function loadGrammar(obj) {
   updateStatus(true, Object.keys(obj).filter(k => !k.startsWith('_')).length);
   render();
   markSaved();
-  // Update the URL to reflect the loaded grammar state
-  scheduleAutoUrlSync();
+
+  if (externalClean && stripEncodedGrammarFromUrl) {
+    stripEncodedGrammarFromLocation();
+  }
+
+  if (externalClean) {
+    setExternalViewCleanMode(true);
+  } else {
+    setExternalViewCleanMode(false);
+    scheduleAutoUrlSync();
+  }
 }
 
 // ── Save to file ──────────────────────────────────────────────────
@@ -1007,6 +1072,55 @@ function handleFileLoad(file) {
   reader.readAsText(file);
 }
 
+function openLoadUrlModal() {
+  if (!loadUrlOverlay) return;
+  loadUrlOverlay.classList.add('open');
+  if (loadUrlInput) {
+    loadUrlInput.focus();
+    loadUrlInput.select();
+  }
+}
+
+function closeLoadUrlModal() {
+  if (!loadUrlOverlay) return;
+  loadUrlOverlay.classList.remove('open');
+}
+
+async function confirmLoadFromRemoteUrl() {
+  if (!loadUrlInput || !btnLoadUrlSubmit) return;
+  const raw = (loadUrlInput.value || '').trim();
+  if (!raw) {
+    showToast('Enter a URL');
+    return;
+  }
+
+  btnLoadUrlSubmit.disabled = true;
+  try {
+    const text = await fetchGrammarTextFromRemote(raw);
+    let obj;
+    try {
+      obj = JSON.parse(text);
+    } catch (err) {
+      showToast('Response is not valid JSON: ' + err.message);
+      return;
+    }
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
+      showToast('JSON must be a single object (Tracery grammar)');
+      return;
+    }
+
+    await pushHistoryCheckpoint();
+    loadGrammar(obj, { externalClean: true, stripEncodedGrammarFromUrl: true });
+    showToast('Loaded from URL (view-only until you enable editing)');
+    closeLoadUrlModal();
+  } catch (e) {
+    const msg = e && e.message ? e.message : 'Failed to load';
+    showToast(msg.length > 120 ? msg.slice(0, 117) + '…' : msg);
+  } finally {
+    btnLoadUrlSubmit.disabled = false;
+  }
+}
+
 async function computeShareUrl(viewMode) {
   const result = parseGrammar(grammarEditor.value);
   if (!result.ok) return { ok: false };
@@ -1023,10 +1137,28 @@ async function computeShareUrl(viewMode) {
 }
 
 /**
- * Shorten via is.gd POST API. The long URL must live in the request body: a JSONP GET
- * embeds it in the query string, which browsers and proxies truncate for large grammars,
- * producing "Please enter a valid URL to shorten" from is.gd.
- * POST responses include Access-Control-Allow-Origin: * (verified 2026), so fetch works.
+ * Human-readable is.gd API errors (see https://is.gd/apishorteningreference.php).
+ */
+function formatIsGdApiError(data) {
+  const msg = (data && data.errormessage && String(data.errormessage).trim()) || 'Unknown error from is.gd';
+  const code = data && typeof data.errorcode === 'number' ? data.errorcode : null;
+  switch (code) {
+    case 1:
+      return `is.gd could not accept this URL (error 1 — invalid or malformed link). ${msg} Check that the studio link is complete. If the grammar is extremely large, try hosting JSON with Load URL and sharing that host link, or copy the long share link without shortening.`;
+    case 2:
+      return `is.gd rejected the custom short name (error 2). ${msg}`;
+    case 3:
+      return `is.gd rate limit (error 3): too many shorten requests from this network. Wait about one minute, then try again. ${msg}`;
+    case 4:
+      return `is.gd could not shorten the link right now (error 4 — maintenance or other service issue). ${msg} Try again later or copy the long preview/editor link instead.`;
+    default:
+      return code != null ? `is.gd: ${msg} (error code ${code})` : `is.gd: ${msg}`;
+  }
+}
+
+/**
+ * Shorten via is.gd POST API (body holds the long URL; GET/JSONP truncates huge URLs).
+ * POST responses include Access-Control-Allow-Origin: * so fetch works from the browser.
  */
 async function shortenUrlWithIsGd(longUrl) {
   const body = new URLSearchParams();
@@ -1047,9 +1179,20 @@ async function shortenUrlWithIsGd(longUrl) {
     });
   } catch (e) {
     if (e.name === 'AbortError') {
-      throw new Error('is.gd request timed out');
+      throw new Error(
+        'is.gd did not respond within 25 seconds (timeout). Check your connection and try again, or copy the long share link from this dialog.'
+      );
     }
-    throw new Error('Could not reach is.gd');
+    const isNetwork =
+      e instanceof TypeError ||
+      (typeof e.message === 'string' &&
+        (e.message.includes('fetch') || e.message.includes('Failed to fetch') || e.message.includes('NetworkError')));
+    if (isNetwork) {
+      throw new Error(
+        'Could not reach is.gd (network or browser blocked the request). Check connectivity, disable strict blockers for this site if needed, or copy the long share link instead.'
+      );
+    }
+    throw e;
   } finally {
     clearTimeout(timeoutId);
   }
@@ -1059,16 +1202,31 @@ async function shortenUrlWithIsGd(longUrl) {
   try {
     data = JSON.parse(text);
   } catch {
-    throw new Error('is.gd returned an invalid response');
+    throw new Error(
+      `is.gd returned HTTP ${res.status} but the body was not JSON (service may be down or returning an error page). Copy the long share link, or try again later.`
+    );
   }
 
   if (data && typeof data.shorturl === 'string') {
     return data.shorturl;
   }
-  if (data && data.errormessage) {
-    throw new Error(data.errormessage);
+
+  if (data && typeof data.errorcode === 'number') {
+    throw new Error(formatIsGdApiError(data));
   }
-  throw new Error('is.gd returned an unexpected response');
+  if (data && data.errormessage) {
+    throw new Error(formatIsGdApiError({ errorcode: null, errormessage: data.errormessage }));
+  }
+
+  if (!res.ok) {
+    throw new Error(
+      `is.gd responded with HTTP ${res.status} ${res.statusText || ''} and no usable JSON. Try again in a minute or copy the long share link.`
+    );
+  }
+
+  throw new Error(
+    'is.gd did not return a short URL (unexpected response). Copy the long preview or editor link from this dialog.'
+  );
 }
 
 let shortLinkBusy = false;
@@ -1103,7 +1261,7 @@ async function copyShortShareUrl(viewMode, triggerBtn) {
     modalOverlay.classList.remove('open');
   } catch (e) {
     const msg = e && e.message ? e.message : 'Shortening failed';
-    showToast(msg.length > 90 ? msg.slice(0, 87) + '…' : msg);
+    showToast(msg.length > 220 ? msg.slice(0, 217) + '…' : msg);
   } finally {
     shortLinkBusy = false;
     if (triggerBtn) triggerBtn.disabled = false;
@@ -1509,7 +1667,6 @@ async function init() {
       if (raw) {
         originSymbol = raw;
         render();
-        // Always update ?o= immediately, independent of grammar validity
         const u = new URL(window.location.href);
         if (originSymbol !== 'origin') {
           u.searchParams.set('o', originSymbol);
@@ -1517,6 +1674,9 @@ async function init() {
           u.searchParams.delete('o');
         }
         window.history.replaceState(null, '', u.toString());
+        if (externalViewCleanMode) {
+          return;
+        }
         scheduleAutoUrlSync();
       }
     });
@@ -1552,6 +1712,39 @@ async function init() {
   btnFormat.addEventListener('click', formatGrammar);
   btnSave.addEventListener('click', saveToFile);
   btnLoad.addEventListener('click', openFileDialog);
+  if (btnLoadUrlOpen) {
+    btnLoadUrlOpen.addEventListener('click', openLoadUrlModal);
+  }
+  if (btnLoadUrlClose) {
+    btnLoadUrlClose.addEventListener('click', closeLoadUrlModal);
+  }
+  if (btnLoadUrlCancel) {
+    btnLoadUrlCancel.addEventListener('click', closeLoadUrlModal);
+  }
+  if (btnLoadUrlSubmit) {
+    btnLoadUrlSubmit.addEventListener('click', () => confirmLoadFromRemoteUrl());
+  }
+  if (loadUrlInput) {
+    loadUrlInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        confirmLoadFromRemoteUrl();
+      }
+    });
+  }
+  if (loadUrlOverlay) {
+    loadUrlOverlay.addEventListener('click', (e) => {
+      if (e.target === loadUrlOverlay) {
+        closeLoadUrlModal();
+      }
+    });
+  }
+
+  const btnExternalEnableEdit = document.getElementById('btn-external-enable-edit');
+  if (btnExternalEnableEdit) {
+    btnExternalEnableEdit.addEventListener('click', () => promptEnableEditingFromExternalClean());
+  }
+
   if (btnExamples) {
     btnExamples.addEventListener('click', openExamplesModal);
   }
@@ -1657,6 +1850,10 @@ async function init() {
     }
     if (e.key === 'Escape' && helpOverlay && helpOverlay.classList.contains('open')) {
       closeHelpModal();
+      return;
+    }
+    if (e.key === 'Escape' && loadUrlOverlay && loadUrlOverlay.classList.contains('open')) {
+      closeLoadUrlModal();
       return;
     }
 
