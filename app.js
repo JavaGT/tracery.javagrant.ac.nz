@@ -1023,51 +1023,52 @@ async function computeShareUrl(viewMode) {
 }
 
 /**
- * is.gd JSONP shorten (no CORS headers on their API; fetch would fail from the browser).
+ * Shorten via is.gd POST API. The long URL must live in the request body: a JSONP GET
+ * embeds it in the query string, which browsers and proxies truncate for large grammars,
+ * producing "Please enter a valid URL to shorten" from is.gd.
+ * POST responses include Access-Control-Allow-Origin: * (verified 2026), so fetch works.
  */
-function shortenUrlWithIsGd(longUrl) {
-  return new Promise((resolve, reject) => {
-    const cbName = '_isgd_cb_' + Date.now() + '_' + Math.floor(Math.random() * 1e9);
-    const script = document.createElement('script');
-    const timeoutId = setTimeout(() => {
-      cleanup();
-      reject(new Error('is.gd request timed out'));
-    }, 25000);
+async function shortenUrlWithIsGd(longUrl) {
+  const body = new URLSearchParams();
+  body.set('format', 'json');
+  body.set('url', longUrl);
 
-    function cleanup() {
-      clearTimeout(timeoutId);
-      try {
-        delete window[cbName];
-      } catch {
-        window[cbName] = undefined;
-      }
-      if (script.parentNode) {
-        script.parentNode.removeChild(script);
-      }
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 25000);
+
+  let res;
+  try {
+    res = await fetch('https://is.gd/create.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+      body: body.toString(),
+      mode: 'cors',
+      signal: controller.signal
+    });
+  } catch (e) {
+    if (e.name === 'AbortError') {
+      throw new Error('is.gd request timed out');
     }
+    throw new Error('Could not reach is.gd');
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
-    window[cbName] = (data) => {
-      cleanup();
-      if (data && typeof data.shorturl === 'string') {
-        resolve(data.shorturl);
-      } else if (data && data.errormessage) {
-        reject(new Error(data.errormessage));
-      } else {
-        reject(new Error('is.gd returned an unexpected response'));
-      }
-    };
+  const text = await res.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error('is.gd returned an invalid response');
+  }
 
-    script.src =
-      'https://is.gd/create.php?format=json&callback=' +
-      encodeURIComponent(cbName) +
-      '&url=' +
-      encodeURIComponent(longUrl);
-    script.onerror = () => {
-      cleanup();
-      reject(new Error('Could not reach is.gd'));
-    };
-    document.head.appendChild(script);
-  });
+  if (data && typeof data.shorturl === 'string') {
+    return data.shorturl;
+  }
+  if (data && data.errormessage) {
+    throw new Error(data.errormessage);
+  }
+  throw new Error('is.gd returned an unexpected response');
 }
 
 let shortLinkBusy = false;
