@@ -109,6 +109,8 @@ const settingsThemeSelect = document.getElementById('settings-theme-select');
 const btnSettingsClose = document.getElementById('btn-settings-close');
 const btnCopyEditor = document.getElementById('btn-copy-editor');
 const btnCopyPreview = document.getElementById('btn-copy-preview');
+const btnShortPreview = document.getElementById('btn-short-preview');
+const btnShortEditor = document.getElementById('btn-short-editor');
 const shareOriginInput = document.getElementById('share-origin-input');
 const shareOriginStatus = document.getElementById('share-origin-status');
 
@@ -1005,21 +1007,113 @@ function handleFileLoad(file) {
   reader.readAsText(file);
 }
 
-async function updateShareModalPreviewUrl() {
+async function computeShareUrl(viewMode) {
   const result = parseGrammar(grammarEditor.value);
-  if (!result.ok) return;
+  if (!result.ok) return { ok: false };
 
   const shareOrigin = (shareOriginInput.value || '').trim();
   const obj = cloneGrammarWithEmbeddedCss(result.obj, cssText);
   const params = {};
-  
   const finalOrigin = shareOrigin || 'origin';
   if (finalOrigin !== 'origin') params.o = finalOrigin;
-  // Preview URL defaults to Wide View as it is the primary action
-  params.v = 'wide';
+  if (viewMode === 'wide') params.v = 'wide';
 
   const url = await buildShareURL(obj, params);
-  modalUrl.value = url;
+  return { ok: true, url };
+}
+
+/**
+ * is.gd JSONP shorten (no CORS headers on their API; fetch would fail from the browser).
+ */
+function shortenUrlWithIsGd(longUrl) {
+  return new Promise((resolve, reject) => {
+    const cbName = '_isgd_cb_' + Date.now() + '_' + Math.floor(Math.random() * 1e9);
+    const script = document.createElement('script');
+    const timeoutId = setTimeout(() => {
+      cleanup();
+      reject(new Error('is.gd request timed out'));
+    }, 25000);
+
+    function cleanup() {
+      clearTimeout(timeoutId);
+      try {
+        delete window[cbName];
+      } catch {
+        window[cbName] = undefined;
+      }
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+    }
+
+    window[cbName] = (data) => {
+      cleanup();
+      if (data && typeof data.shorturl === 'string') {
+        resolve(data.shorturl);
+      } else if (data && data.errormessage) {
+        reject(new Error(data.errormessage));
+      } else {
+        reject(new Error('is.gd returned an unexpected response'));
+      }
+    };
+
+    script.src =
+      'https://is.gd/create.php?format=json&callback=' +
+      encodeURIComponent(cbName) +
+      '&url=' +
+      encodeURIComponent(longUrl);
+    script.onerror = () => {
+      cleanup();
+      reject(new Error('Could not reach is.gd'));
+    };
+    document.head.appendChild(script);
+  });
+}
+
+let shortLinkBusy = false;
+
+async function copyShortShareUrl(viewMode, triggerBtn) {
+  if (shortLinkBusy) return;
+
+  const built = await computeShareUrl(viewMode);
+  if (!built.ok) {
+    showToast('Fix JSON errors before sharing');
+    return;
+  }
+
+  const labelEl = triggerBtn?.querySelector?.('.short-link-btn-label');
+  const prevLabel = labelEl ? labelEl.textContent : '';
+
+  shortLinkBusy = true;
+  if (triggerBtn) triggerBtn.disabled = true;
+  if (labelEl) labelEl.textContent = 'Creating short link…';
+
+  try {
+    const short = await shortenUrlWithIsGd(built.url);
+    try {
+      await navigator.clipboard.writeText(short);
+      showToast('Short link copied!');
+    } catch {
+      modalUrl.value = short;
+      modalUrl.select();
+      document.execCommand('copy');
+      showToast('Copied!');
+    }
+    modalOverlay.classList.remove('open');
+  } catch (e) {
+    const msg = e && e.message ? e.message : 'Shortening failed';
+    showToast(msg.length > 90 ? msg.slice(0, 87) + '…' : msg);
+  } finally {
+    shortLinkBusy = false;
+    if (triggerBtn) triggerBtn.disabled = false;
+    if (labelEl && prevLabel) labelEl.textContent = prevLabel;
+  }
+}
+
+async function updateShareModalPreviewUrl() {
+  const built = await computeShareUrl('wide');
+  if (!built.ok) return;
+  modalUrl.value = built.url;
 }
 
 function validateShareOrigin() {
@@ -1054,23 +1148,13 @@ function validateShareOrigin() {
 }
 
 async function copyShareUrl(viewMode = 'editor') {
-  const result = parseGrammar(grammarEditor.value);
-  if (!result.ok) {
+  const built = await computeShareUrl(viewMode);
+  if (!built.ok) {
     showToast('Fix JSON errors before sharing');
     return;
   }
+  const url = built.url;
 
-  const shareOrigin = (shareOriginInput.value || '').trim();
-  const obj = cloneGrammarWithEmbeddedCss(result.obj, cssText);
-  const params = {};
-  
-  // Use the share-specific origin if provided, otherwise default to "origin"
-  const finalOrigin = shareOrigin || 'origin';
-  if (finalOrigin !== 'origin') params.o = finalOrigin;
-  if (viewMode === 'wide') params.v = 'wide';
-
-  const url = await buildShareURL(obj, params);
-  
   try {
     await navigator.clipboard.writeText(url);
     showToast('URL copied!');
@@ -1504,6 +1588,12 @@ async function init() {
   }
   if (btnCopyPreview) {
     btnCopyPreview.addEventListener('click', () => copyShareUrl('wide'));
+  }
+  if (btnShortPreview) {
+    btnShortPreview.addEventListener('click', () => copyShortShareUrl('wide', btnShortPreview));
+  }
+  if (btnShortEditor) {
+    btnShortEditor.addEventListener('click', () => copyShortShareUrl('editor', btnShortEditor));
   }
 
   if (shareOriginInput) {

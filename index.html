@@ -280,6 +280,29 @@
             Copy Editor Link
           </button>
         </div>
+
+        <div style="border-top: 1px solid var(--color-border); margin: 18px 0 0; padding-top: 14px;">
+          <span style="font-size: 11px; color: var(--color-text-mid); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; display: block;">Pinned short links (is.gd)</span>
+          <p class="examples-subtitle" style="margin: 0 0 12px; text-align: left; line-height: 1.55">
+            Mint a short redirect URL that points at <em>this</em> encoded snapshot. Recipients always get this exact grammar and CSS; later edits in your studio do not change the destination.
+          </p>
+          <div class="modal-actions" style="flex-direction: column; gap: 8px; margin-top: 0">
+            <button type="button" class="modal-btn" id="btn-short-preview" style="justify-content: center; width: 100%; display: flex; align-items: center; gap: 8px; height: 38px;">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                <rect x="2" y="2" width="12" height="12" rx="2"/>
+                <path d="M5 8h6M8 5v6" transform="rotate(45 8 8)"/>
+              </svg>
+              <span class="short-link-btn-label">Short pinned preview</span>
+            </button>
+            <button type="button" class="modal-btn" id="btn-short-editor" style="justify-content: center; width: 100%; display: flex; align-items: center; gap: 8px; height: 38px;">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                <rect x="2" y="2" width="5" height="12" rx="1"/>
+                <path d="M9 5h5M9 8h5M9 11h5"/>
+              </svg>
+              <span class="short-link-btn-label">Short pinned editor</span>
+            </button>
+          </div>
+        </div>
         
         <p class="examples-subtitle" style="margin-top: 16px; text-align: center; line-height: 1.6">
           <strong>Preview Link:</strong> recipients see only the output.<br>
