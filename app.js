@@ -123,9 +123,22 @@ const btnShortEditor = document.getElementById('btn-short-editor');
 const shareOriginInput = document.getElementById('share-origin-input');
 const shareOriginStatus = document.getElementById('share-origin-status');
 
-const btnHelp = document.getElementById('btn-help');
-const helpOverlay = document.getElementById('help-overlay');
-const btnHelpClose = document.getElementById('btn-help-close');
+
+const btnThemeCycle = document.getElementById('btn-theme-cycle');
+const themeCycleLabel = document.getElementById('theme-cycle-label');
+const themeCycleIcon = document.getElementById('theme-cycle-icon');
+
+const THEME_CYCLE_ORDER = ['auto', 'light', 'dark'];
+const THEME_CYCLE_ICONS = {
+  auto: '🌓',
+  light: '🌞',
+  dark: '🌚'
+};
+const THEME_CYCLE_LABELS = {
+  auto: 'Auto',
+  light: 'Light',
+  dark: 'Dark'
+};
 
 function openHelpModal() {
   if (helpOverlay) helpOverlay.classList.add('open');
@@ -166,6 +179,12 @@ function applyThemePreference(value) {
 
   if (settingsThemeSelect) {
     settingsThemeSelect.value = theme;
+  }
+
+  // Update theme cycle button if present
+  if (themeCycleLabel && themeCycleIcon) {
+    themeCycleLabel.textContent = THEME_CYCLE_LABELS[theme] || 'Auto';
+    themeCycleIcon.textContent = THEME_CYCLE_ICONS[theme] || '🌓';
   }
 }
 
@@ -1869,3 +1888,18 @@ async function init() {
 }
 
 document.addEventListener('DOMContentLoaded', init);
+
+// Theme cycle button logic
+if (btnThemeCycle) {
+  btnThemeCycle.addEventListener('click', () => {
+    const current = getSavedThemePreference();
+    const idx = THEME_CYCLE_ORDER.indexOf(current);
+    const next = THEME_CYCLE_ORDER[(idx + 1) % THEME_CYCLE_ORDER.length];
+    applyThemePreference(next);
+    saveThemePreference(next);
+  });
+  // Set initial label/icon
+  const initial = getSavedThemePreference();
+  themeCycleLabel.textContent = THEME_CYCLE_LABELS[initial] || 'Auto';
+  themeCycleIcon.textContent = THEME_CYCLE_ICONS[initial] || '🌓';
+}

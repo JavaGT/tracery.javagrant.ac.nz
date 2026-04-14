@@ -1,3 +1,37 @@
+/*
+  Example: Responding to light and dark mode dynamically
+  The following CSS changes the background and text color of .theme-demo
+  depending on the user's system preference or the selected theme.
+*/
+.theme-demo {
+  padding: 1em 1.5em;
+  border-radius: 8px;
+  margin: 1em 0;
+  background: #16161c;
+  color: #dde1e8;
+  border: 1px solid #2e2e3e;
+  font-size: 1.1em;
+}
+
+@media (prefers-color-scheme: light) {
+  .theme-demo {
+    background: #f4f6fa;
+    color: #364152;
+    border-color: #d7dfeb;
+  }
+}
+
+/* If you use [data-theme="light"] or [data-theme="dark"] on <html>, override as below: */
+[data-theme="light"] .theme-demo {
+  background: #f4f6fa;
+  color: #364152;
+  border-color: #d7dfeb;
+}
+[data-theme="dark"] .theme-demo {
+  background: #16161c;
+  color: #dde1e8;
+  border-color: #2e2e3e;
+}
 /* layout.css - Tracery Studio layout */
 
 :root {
